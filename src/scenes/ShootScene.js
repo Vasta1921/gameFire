@@ -31,7 +31,8 @@ export class ShootScene extends Phaser.Scene {
         // }
 
         // Создаем башню (космический модуль) внизу экрана
-        this.tower = this.physics.add.sprite(this.cameras.main.centerX, this.cameras.main.height - 50, 'spaceship_tower');        this.tower.setCollideWorldBounds(true);
+        this.tower = this.physics.add.sprite(this.cameras.main.centerX, this.cameras.main.height - 50, 'tower');
+        this.tower.setCollideWorldBounds(true);
         this.tower.setImmovable(true);
 
         // Создаем дуло (турель), которое будет вращаться
