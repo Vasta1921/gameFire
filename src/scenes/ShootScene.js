@@ -31,7 +31,8 @@ export class ShootScene extends Phaser.Scene {
         // }
 
         // Создаем башню (космический модуль) внизу экрана
-        this.tower = this.physics.add.sprite(this.cameras.main.centerX, this.cameras.main.height - 50, 'tower');
+        this.tower = this.physics.add.sprite(this.cameras.main.centerX,
+            this.cameras.main.height - 50, 'tower');
         this.tower.setCollideWorldBounds(true);
         this.tower.setImmovable(true);
 
