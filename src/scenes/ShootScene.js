@@ -48,8 +48,12 @@ export class ShootScene extends Phaser.Scene {
 
         // Создаем группу врагов
         this.enemies = this.physics.add.group();
+
+        this.createBulletTexture(this, 'redBullet', 8, 20, 0xff3333);
+
         // Создаем группу пуль
-        this.bullets = this.physics.add.group();
+        this.bullets = this.physics.add.group({defaultKey: 'redBullet',
+            maxSize: 50000});
 
         // Создаем текст для счета
         this.score = 0;
@@ -115,7 +119,7 @@ export class ShootScene extends Phaser.Scene {
 
             // Запускаем таймер для автострельбы каждый 0.2 секунды
             this.shootTimer = this.time.addEvent({
-                delay: 200, // Частота стрельбы
+                delay: 2, // Частота стрельбы
                 callback: this.shootBullet,
                 callbackScope: this,
                 loop: true
@@ -145,15 +149,31 @@ export class ShootScene extends Phaser.Scene {
 
         // Создание пули
         const xOffset = Phaser.Math.FloatBetween(-5, 5);
-        const bullet = this.bullets.create(this.turret.x + xOffset, this.turret.y, 'bullet');
-        if (bullet) {
-            const speed = 400;
+        const bullet = this.bullets.get(this.turret.x, this.turret.y);        if (bullet) {
+            const speed = 500;
+            bullet.setActive(true);
+
             bullet.setRotation(angle + Math.PI / 2);
-            bullet.setSize(8,20);
-            bullet.setDisplaySize(8,20);
+            bullet.setDisplaySize(8, 20);
             bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+            bullet.setDepth(0);
         }
     }
+
+    createBulletTexture(scene, key, width, height, color) {
+        // Если уже создана — не пересоздаём
+        if (scene.textures.exists(key)) return;
+
+        const g = scene.add.graphics();
+        g.fillStyle(color, 1);
+        g.fillRoundedRect(-width / 2, -height / 2, width, height, 3);
+
+        const rt = scene.make.renderTexture({ width, height }, false);
+        rt.draw(g, width / 2, height / 2);
+        rt.saveTexture(key);
+        g.destroy();
+    }
+
 
     hitEnemy(bullet, enemy) {
         // Уничтожаем врага и пулю при столкновении
