@@ -66,14 +66,6 @@ export class ShootScene extends Phaser.Scene {
             loop: true
         });
 
-        // // Стрельба каждые 0.5 секунды
-        // this.time.addEvent({
-        //     delay: 500,
-        //     callback: this.shootBullet,
-        //     callbackScope: this,
-        //     loop: true
-        // });
-
         // Автострельба по удержанию
         this.isShooting = false; // Флаг состояния стрельбы
         this.shootTimer = null; // Таймер для автострельбы
@@ -97,7 +89,7 @@ export class ShootScene extends Phaser.Scene {
         this.bullets.getChildren().forEach(bullet => {
             if (
                 bullet.x < 0 ||
-                bullet.x > this.cameras.main.width   ||
+                bullet.x > this.cameras.main.width ||
                 bullet.y < 0 ||
                 bullet.y > this.cameras.main.height
             ) {
@@ -121,7 +113,7 @@ export class ShootScene extends Phaser.Scene {
             // Первый выстрел сразу
             this.shootBullet();
 
-            // Запускаем таймер для автострельбы (каждые 150мс)
+            // Запускаем таймер для автострельбы каждый 0.2 секунды
             this.shootTimer = this.time.addEvent({
                 delay: 200, // Частота стрельбы
                 callback: this.shootBullet,
@@ -148,7 +140,6 @@ export class ShootScene extends Phaser.Scene {
     shootBullet() {
         if (!this.isShooting) return;
 
-        // Активируем эмиттер и выпускаем частицу
         const pointer = this.input.activePointer;
         const angle = Phaser.Math.Angle.Between(this.turret.x, this.turret.y, pointer.x, pointer.y);
 
