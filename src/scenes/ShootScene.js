@@ -15,7 +15,7 @@ export class ShootScene extends Phaser.Scene {
     create() {
 
         // Фон
-        this.background = this.add.tileSprite(180, 320, 360, 640, 'background');
+        this.background = this.add.tileSprite(360, 640, 720, 1280, 'background');
 
         // Получаем размер окна от Telegram Web App
         //const telegramData = window.Telegram.WebApp;
@@ -35,24 +35,21 @@ export class ShootScene extends Phaser.Scene {
             this.cameras.main.height - 50, 'tower');
         this.tower.setCollideWorldBounds(true);
         this.tower.setImmovable(true);
+        //this.tower.setScale(2) // размер увеличил в два раза
+        //this.tower.setSize(64, 64); // Установить ширину 40px и высоту 60px
+        //this.tower.setDisplaySize(64, 64); // Установить видимый размер (если отличается от физического)
 
         // Создаем дуло (турель), которое будет вращаться
         this.turret = this.add.sprite(this.tower.x, this.tower.y - 10, 'turret'); // Позиция относительно башни
         this.turret.setOrigin(0.5, 1.0); // Устанавливаем точку вращения в нижнюю часть
 
-        // Создаем группу врагов (летающие тарелки)
-        this.enemies = this.physics.add.group();
-        // Создаем группу пуль (лазеры)
-        this.bullets = this.physics.add.group();
+        this.turret.setDepth(2); // Дуло выше
+        this.tower.setDepth(1); // Башня ниже дула
 
-        // Создаем эмиттер частиц для лазера
-        // this.particleEmitter = this.add.particles('laser_bullet').createEmitter({
-        //     speed: 400,
-        //     lifespan: 500,
-        //     scale: { start: 1, end: 0 },
-        //     blendMode: 'ADD', // Яркий эффект
-        //     on: false // Включаем при выстреле
-        // });
+        // Создаем группу врагов
+        this.enemies = this.physics.add.group();
+        // Создаем группу пуль
+        this.bullets = this.physics.add.group();
 
         // Создаем текст для счета
         this.score = 0;
@@ -95,12 +92,6 @@ export class ShootScene extends Phaser.Scene {
         const pointer = this.input.activePointer;
         const angle = Phaser.Math.Angle.Between(this.tower.x, this.tower.y, pointer.x, pointer.y);
         this.turret.setRotation(angle + Math.PI / 2);
-
-        // // Обновляем эмиттер частиц, если активен
-        // if (this.particleEmitter.on) {
-        //     this.particleEmitter.setPosition(this.tower.x, this.tower.y);
-        //     this.particleEmitter.setAngle(angle * (180 / Math.PI));
-        // }
 
         // Проверка и удаление пуль, вышедших за экран
         this.bullets.getChildren().forEach(bullet => {
@@ -155,21 +146,19 @@ export class ShootScene extends Phaser.Scene {
     }
 
     shootBullet() {
-        // Создаем эффект лазера с частицами
-        // this.particleEmitter.setPosition(this.tower.x, this.tower.y);
-        // this.particleEmitter.setAngle(Phaser.Math.Angle.Between(this.tower.x, this.tower.y, this.input.activePointer.x, this.input.activePointer.y) * (180 / Math.PI));
-        // this.particleEmitter.emitParticle(1); // Выпускаем одну частицу
+        if (!this.isShooting) return;
 
-        // Симуляция пули для коллизии (невидимая, только для физики)
-        const x = Phaser.Math.FloatBetween(-5, 5);
-        const bullet = this.bullets.create(this.turret.x + x, this.turret.y, 'bullet');
+        // Активируем эмиттер и выпускаем частицу
         const pointer = this.input.activePointer;
-        const angle = Phaser.Math.Angle.Between(this.tower.x, this.tower.y, pointer.x, pointer.y);
-        const speed = 400;
-        bullet.setVelocity(
-            Math.cos(angle) * speed,
-            Math.sin(angle) * speed
-        );
+        const angle = Phaser.Math.Angle.Between(this.turret.x, this.turret.y, pointer.x, pointer.y);
+
+        // Создание пули
+        const xOffset = Phaser.Math.FloatBetween(-5, 5);
+        const bullet = this.bullets.create(this.turret.x + xOffset, this.turret.y, 'bullet');
+        if (bullet) {
+            const speed = 400;
+            bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+        }
     }
 
     hitEnemy(bullet, enemy) {
