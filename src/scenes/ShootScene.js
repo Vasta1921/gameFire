@@ -148,6 +148,9 @@ export class ShootScene extends Phaser.Scene {
         const bullet = this.bullets.create(this.turret.x + xOffset, this.turret.y, 'bullet');
         if (bullet) {
             const speed = 400;
+            bullet.setRotation(angle + Math.PI / 2);
+            bullet.setSize(8,20);
+            bullet.setDisplaySize(8,20);
             bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
         }
     }
