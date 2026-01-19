@@ -6,7 +6,11 @@ export class ShootScene extends Phaser.Scene {
     preload() {
         // Загрузка новых изображений
         this.load.image('tower', 'assets/tower.png');
-        this.load.image('enemy', 'assets/enemy.png');
+        this.load.image('enemy1', 'assets/enemy/enemy1.png');
+        this.load.image('enemy2', 'assets/enemy/enemy2.png');
+        this.load.image('enemy3', 'assets/enemy/enemy3.png');
+        this.load.image('enemy4', 'assets/enemy/enemy4.png');
+        this.load.image('enemy5', 'assets/enemy/enemy5.png');
         this.load.image('turret', 'assets/turret.png'); // Новый спрайт для дула
         this.load.image('bullet', 'assets/bullet.png');
         this.load.image('background', 'assets/back_ground.png');
@@ -16,6 +20,7 @@ export class ShootScene extends Phaser.Scene {
 
         // Фон
         this.background = this.add.tileSprite(360, 640, 720, 1280, 'background');
+        this.enemyKeys = ['enemy1', 'enemy2', 'enemy3', 'enemy4', 'enemy5'];
 
         // Получаем размер окна от Telegram Web App
         //const telegramData = window.Telegram.WebApp;
@@ -49,7 +54,7 @@ export class ShootScene extends Phaser.Scene {
         // Создаем группу врагов
         this.enemies = this.physics.add.group();
 
-        this.createBulletTexture(this, 'redBullet', 8, 20, 0xff3333);
+        this.createBulletTexture(this, 'redBullet', 80, 200, 0xff3333);
 
         // Создаем группу пуль
         this.bullets = this.physics.add.group({defaultKey: 'redBullet',
@@ -105,7 +110,10 @@ export class ShootScene extends Phaser.Scene {
     spawnEnemy() {
         // Создаем врага (летающую тарелку) в случайной позиции сверху
         const x = Phaser.Math.Between(10, 350);
-        const enemy = this.enemies.create(x, 0, 'enemy');
+
+        const randomKey = Phaser.Utils.Array.GetRandom(this.enemyKeys);
+
+        const enemy = this.enemies.create(x, 0, randomKey);
         enemy.setVelocityY(100);
     }
 
@@ -119,7 +127,7 @@ export class ShootScene extends Phaser.Scene {
 
             // Запускаем таймер для автострельбы каждый 0.2 секунды
             this.shootTimer = this.time.addEvent({
-                delay: 2, // Частота стрельбы
+                delay: 150 , // Частота стрельбы
                 callback: this.shootBullet,
                 callbackScope: this,
                 loop: true
@@ -149,7 +157,10 @@ export class ShootScene extends Phaser.Scene {
 
         // Создание пули
         const xOffset = Phaser.Math.FloatBetween(-5, 5);
-        const bullet = this.bullets.get(this.turret.x, this.turret.y);        if (bullet) {
+        //console.log(xOffset)
+        const bullet = this.bullets.get(this.turret.x + xOffset, this.turret.y);
+        console.log(bullet.x)
+        if (bullet) {
             const speed = 500;
             bullet.setActive(true);
 
