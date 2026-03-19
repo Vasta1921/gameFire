@@ -1,136 +1,73 @@
-import { BulletManager } from "../BulletManager.js";
+import { BulletManager } from "../engine/BulletManager.js";
+import { EnemySpawner } from "../engine/EnemySpawner.js";
+import { createBulletTexture } from "../engine/createBulletTexture.js";
+import { Tower } from "../engine/Tower.js";
 
 export class ShootScene extends Phaser.Scene {
+
     constructor() {
-        super('ShootScene');
+        super("ShootScene");
     }
 
     preload() {
-        // Загрузка новых изображений
-        this.load.image('tower', 'assets/tower.png');
-        this.load.image('enemy1', 'assets/enemy/enemy1.png');
-        this.load.image('enemy2', 'assets/enemy/enemy2.png');
-        this.load.image('enemy3', 'assets/enemy/enemy3.png');
-        this.load.image('enemy4', 'assets/enemy/enemy4.png');
-        this.load.image('enemy5', 'assets/enemy/enemy5.png');
-        this.load.image('turret', 'assets/turret.png'); // Новый спрайт для дула
-        this.load.image('bullet', 'assets/bullet.png');
-        this.load.image('background', 'assets/back_ground.png');
+        this.load.image("tower", "assets/tower.png");
+        this.load.image("turret", "assets/turret.png");
+        this.load.image("enemy1", "assets/enemy/enemy1.png");
+        this.load.image("enemy2", "assets/enemy/enemy2.png");
+        this.load.image("enemy3", "assets/enemy/enemy3.png");
+        this.load.image("enemy4", "assets/enemy/enemy4.png");
+        this.load.image("enemy5", "assets/enemy/enemy5.png");
+        this.load.image("background", "assets/back_ground.png");
     }
 
     create() {
+        // Задаём фон
+        this.add.tileSprite(360, 640, 720, 1280, "background");
 
-        // Фон
-        this.background = this.add.tileSprite(360, 640, 720, 1280, 'background');
-        this.enemyKeys = ['enemy1', 'enemy2', 'enemy3', 'enemy4', 'enemy5'];
+        // Создаём пули
+        createBulletTexture(this, "redBullet", 80, 200, 0xff3333);
 
-        // Получаем размер окна от Telegram Web App
-        //const telegramData = window.Telegram.WebApp;
-        // if (telegramData) {
-        //     const { width, height } = telegramData.viewportStableHeight
-        //         ? { width: telegramData.viewportStableWidth, height: telegramData.viewportStableHeight }
-        //         : { width: window.innerWidth, height: window.innerHeight };
-        //     this.cameras.main.setViewport(0, 0, width, height);
-        //     this.cameras.main.setZoom(Math.min(width / 360, height / 640)); // Адаптация под базовое разрешение 360x640
-        // } else {
-        //     // Фallback для тестирования вне Telegram
-        //     this.cameras.main.setViewport(0, 0, 360, 640);
-        // }
-
+        // Создаём менеджер пуль
         this.weapon = new BulletManager(this);
+        this.enemySpawner = new EnemySpawner(this);
 
-        // Создаем башню (космический модуль) внизу экрана
-        this.tower = this.physics.add.sprite(this.cameras.main.centerX,
-            this.cameras.main.height - 50, 'tower');
-        this.tower.setCollideWorldBounds(true);
-        this.tower.setImmovable(true);
-        //this.tower.setScale(2) // размер увеличил в два раза
-        //this.tower.setSize(64, 64); // Установить ширину 40px и высоту 60px
-        //this.tower.setDisplaySize(64, 64); // Установить видимый размер (если отличается от физического)
-
-        // Создаем дуло (турель), которое будет вращаться
-        this.turret = this.add.sprite(this.tower.x, this.tower.y - 10, 'turret'); // Позиция относительно башни
-        this.turret.setOrigin(0.5, 1.0); // Устанавливаем точку вращения в нижнюю часть
-
-        this.turret.setDepth(2); // Дуло выше
-        this.tower.setDepth(1); // Башня ниже дула
-
-        // Создаем группу врагов
-        this.enemies = this.physics.add.group();
-
-        this.createBulletTexture(this, 'redBullet', 80, 200, 0xff3333);
-
-        // Создаем группу пуль
-        this.bullets = this.physics.add.group({defaultKey: 'redBullet',
-            maxSize: 50000});
-
-        // Создаем текст для счета
-        this.score = 0;
-        this.scoreText = this.add.text(16, 16, 'Score: 0', { fontSize: '32px', fill: '#fff' });
-
-        // Коллизия между пулями и врагами
-        this.physics.add.collider(this.bullets, this.enemies, this.hitEnemy, null, this);
-        // Спавн врагов каждые 2 секунды
-        this.time.addEvent({
-            delay: 1000,
-            callback: this.spawnEnemy,
-            callbackScope: this,
-            loop: true
+        // Создаём башню и турели (одна турель по центру)
+        this.tower = new Tower(this, this.cameras.main.centerX, this.cameras.main.height - 50, {
+            turretConfigs: [
+                {
+                    offsetX: 0,
+                    offsetY: -10,
+                    rotationOffset: 0,
+                }
+            ]
         });
 
-        // Автострельба по удержанию
-        this.isShooting = false; // Флаг состояния стрельбы
-        this.shootTimer = null; // Таймер для автострельбы
+        // Коллизии: пули должны пересекаться с врагами и уничтожать их.
+        this.physics.add.overlap(
+            this.weapon.bullets,
+            this.enemySpawner.enemies,
+            (bullet, enemy) => this.hitEnemy(bullet, enemy),
+            undefined,
+            this
+        );
 
-        // Стрельба по касанию/нажатию
-        this.input.on('pointerdown', this.startShooting, this);
-        //this.input.on('pointerdown', this.shootBullet, this);
-        // Остановка стрельбы при отпускании
-        this.input.on('pointerup', this.stopShooting, this);
-        // Остановка стрельбы при выходе курсора за пределы экрана
-        this.input.on('pointerout', this.stopShooting, this);
-    }
-
-    update() {
-        // Прицеливание башни на указатель мыши/палец
-        const pointer = this.input.activePointer;
-        const angle = Phaser.Math.Angle.Between(this.tower.x, this.tower.y, pointer.x, pointer.y);
-        this.turret.setRotation(angle + Math.PI / 2);
-
-        // Проверка и удаление пуль, вышедших за экран
-        this.bullets.getChildren().forEach(bullet => {
-            if (
-                bullet.x < 0 ||
-                bullet.x > this.cameras.main.width ||
-                bullet.y < 0 ||
-                bullet.y > this.cameras.main.height
-            ) {
-                bullet.destroy();
-            }
-        });
-    }
-
-    spawnEnemy() {
-        // Создаем врага (летающую тарелку) в случайной позиции сверху
-        const x = Phaser.Math.Between(10, 710);
-
-        const randomKey = Phaser.Utils.Array.GetRandom(this.enemyKeys);
-
-        const enemy = this.enemies.create(x, 0, randomKey);
-        enemy.setVelocityY(100);
+        // Обработчики для стрельбы
+        this.input.on("pointerdown", () => this.startShooting(), this);
+        this.input.on("pointerup", this.stopShooting, this);
+        this.input.on("pointerout", this.stopShooting, this);
     }
 
     startShooting() {
         if (!this.isShooting) {
-            console.log('Starting auto-fire');
+            console.log("Starting auto-fire");
             this.isShooting = true;
 
-            // Первый выстрел сразу
-            this.shootBullet();
+            // Стрельба со всех турелей башни
+            this.tower.shootAll(this.weapon);
 
-            // Запускаем таймер для автострельбы каждый 0.2 секунды
+            // Запускаем таймер для автострельбы с заданной частотой
             this.shootTimer = this.time.addEvent({
-                delay: 150 , // Частота стрельбы
+                delay: this.tower.fireRateMs, // Частота стрельбы (апгрейды смогут менять)
                 callback: this.shootBullet,
                 callbackScope: this,
                 loop: true
@@ -138,10 +75,9 @@ export class ShootScene extends Phaser.Scene {
         }
     }
 
-    /** Остановка непрерывной стрельбы */
     stopShooting() {
         if (this.isShooting) {
-            console.log('Stopping auto-fire');
+            console.log("Stopping auto-fire");
             this.isShooting = false;
 
             // Останавливаем таймер
@@ -155,43 +91,22 @@ export class ShootScene extends Phaser.Scene {
     shootBullet() {
         if (!this.isShooting) return;
 
+        // Стрельба со всех турелей башни
+        this.tower.shootAll(this.weapon);
+    }
+
+    update() {
         const pointer = this.input.activePointer;
-        const angle = Phaser.Math.Angle.Between(this.turret.x, this.turret.y, pointer.x, pointer.y);
 
-        // Создание пули
-        const xOffset = Phaser.Math.FloatBetween(-8, 8);
-        const bullet = this.bullets.get(this.turret.x + xOffset, this.turret.y);
-        console.log(bullet.x)
-        if (bullet) {
-            const speed = 500;
-            bullet.setActive(true);
-            bullet.setRotation(angle + Math.PI / 2);
-            bullet.setDisplaySize(8, 20);
-            bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
-            bullet.setDepth(0);
-        }
+        // Обновляем турели башни
+        this.tower.update(pointer);
+
+        // Обновляем пули: деактивируем, когда они выходят за пределы экрана.
+        this.weapon.update(this.cameras.main);
     }
-
-    createBulletTexture(scene, key, width, height, color) {
-        // Если уже создана — не пересоздаём
-        if (scene.textures.exists(key)) return;
-
-        const g = scene.add.graphics();
-        g.fillStyle(color, 1);
-        g.fillRoundedRect(-width / 2, -height / 2, width, height, 3);
-
-        const rt = scene.make.renderTexture({ width, height }, false);
-        rt.draw(g, width / 2, height / 2);
-        rt.saveTexture(key);
-        g.destroy();
-    }
-
 
     hitEnemy(bullet, enemy) {
-        // Уничтожаем врага и пулю при столкновении
-        bullet.destroy();
+        bullet.disableBody(true, true);
         enemy.destroy();
-        this.score += 10;
-        this.scoreText.setText('Score: ' + this.score);
     }
 }
