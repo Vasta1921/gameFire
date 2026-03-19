@@ -1,3 +1,5 @@
+import { BulletManager } from "../BulletManager.js";
+
 export class ShootScene extends Phaser.Scene {
     constructor() {
         super('ShootScene');
@@ -35,6 +37,8 @@ export class ShootScene extends Phaser.Scene {
         //     this.cameras.main.setViewport(0, 0, 360, 640);
         // }
 
+        this.weapon = new BulletManager(this);
+
         // Создаем башню (космический модуль) внизу экрана
         this.tower = this.physics.add.sprite(this.cameras.main.centerX,
             this.cameras.main.height - 50, 'tower');
@@ -66,7 +70,6 @@ export class ShootScene extends Phaser.Scene {
 
         // Коллизия между пулями и врагами
         this.physics.add.collider(this.bullets, this.enemies, this.hitEnemy, null, this);
-
         // Спавн врагов каждые 2 секунды
         this.time.addEvent({
             delay: 1000,
@@ -109,7 +112,7 @@ export class ShootScene extends Phaser.Scene {
 
     spawnEnemy() {
         // Создаем врага (летающую тарелку) в случайной позиции сверху
-        const x = Phaser.Math.Between(10, 350);
+        const x = Phaser.Math.Between(10, 710);
 
         const randomKey = Phaser.Utils.Array.GetRandom(this.enemyKeys);
 
@@ -156,14 +159,12 @@ export class ShootScene extends Phaser.Scene {
         const angle = Phaser.Math.Angle.Between(this.turret.x, this.turret.y, pointer.x, pointer.y);
 
         // Создание пули
-        const xOffset = Phaser.Math.FloatBetween(-5, 5);
-        //console.log(xOffset)
+        const xOffset = Phaser.Math.FloatBetween(-8, 8);
         const bullet = this.bullets.get(this.turret.x + xOffset, this.turret.y);
         console.log(bullet.x)
         if (bullet) {
             const speed = 500;
             bullet.setActive(true);
-
             bullet.setRotation(angle + Math.PI / 2);
             bullet.setDisplaySize(8, 20);
             bullet.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
