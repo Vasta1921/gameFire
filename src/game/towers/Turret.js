@@ -7,7 +7,7 @@ export class Turret {
             rotationOffset = 0,
             depth = 2,
             muzzleOffset = 6,
-            spread = 3,
+            spread = 6,
             bulletSpeed = 500,
             bulletWidth = 8,
             bulletHeight = 20,
@@ -50,6 +50,7 @@ export class Turret {
         const perpY = dirX;
 
         const spreadOffset = Phaser.Math.FloatBetween(-this.spread, this.spread);
+        console.log(spreadOffset)
         const bulletCenterAlongDir = this.muzzleOffset - this.bulletHeight / 2;
 
         const startX = this.sprite.x + dirX * bulletCenterAlongDir + perpX * spreadOffset;

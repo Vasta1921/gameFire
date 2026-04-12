@@ -3,7 +3,8 @@ export class EnemyManager {
         this.scene = scene;
 
         const {
-            enemyKeys = ["enemy1", "enemy2", "enemy3", "enemy4", "enemy5"],
+            //enemyKeys = ["enemy1", "enemy2", "enemy3", "enemy4", "enemy5"],
+            enemyKeys = ["enemy"],
             spawnDelayMs = 1000,
             speedY = 100,
         } = options;

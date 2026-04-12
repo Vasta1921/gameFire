@@ -15,11 +15,12 @@ export class ShootScene extends Phaser.Scene {
     preload() {
         this.load.image("tower", "assets/tower.png");
         this.load.image("turret", "assets/turret.png");
-        this.load.image("enemy1", "assets/enemy/enemy1.png");
-        this.load.image("enemy2", "assets/enemy/enemy2.png");
-        this.load.image("enemy3", "assets/enemy/enemy3.png");
-        this.load.image("enemy4", "assets/enemy/enemy4.png");
-        this.load.image("enemy5", "assets/enemy/enemy5.png");
+         this.load.image("enemy", "assets/enemy/enemy.png");
+        // this.load.image("enemy1", "assets/enemy/enemy1.png");
+        // this.load.image("enemy2", "assets/enemy/enemy2.png");
+        // this.load.image("enemy3", "assets/enemy/enemy3.png");
+        // this.load.image("enemy4", "assets/enemy/enemy4.png");
+        // this.load.image("enemy5", "assets/enemy/enemy5.png");
         this.load.image("background", "assets/back_ground.png");
     }
 
@@ -34,7 +35,8 @@ export class ShootScene extends Phaser.Scene {
         });
 
         this.enemyManager = new EnemyManager(this, {
-            enemyKeys: ["enemy1", "enemy2", "enemy3", "enemy4", "enemy5"],
+            //enemyKeys: ["enemy1", "enemy2", "enemy3", "enemy4", "enemy5"],
+            enemyKeys: ["enemy"],
             spawnDelayMs: 1000,
             speedY: 100,
         });
@@ -49,7 +51,7 @@ export class ShootScene extends Phaser.Scene {
                     offsetY: -10,
                     key: "turret",
                     depth: 2,
-                    spread: 3,
+                    spread: 6,
                     muzzleOffset: 6,
                     bulletSpeed: 500,
                 },
