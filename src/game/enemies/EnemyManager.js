@@ -16,7 +16,7 @@ const ORB = {
     id: "orb",
     key: "enemyOrb",
     weight: 1,
-    hp: 5,
+    hp: 2,
     speedY: 70,
     fireDelay: 1100,
     damageMin: 1,
