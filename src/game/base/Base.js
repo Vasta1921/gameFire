@@ -25,10 +25,9 @@ export class Base {
         }
 
         this.wallTop = this.sprite.y - wallHeight / 2;
-        this.siegeY = this.wallTop - 48;
-        // Верх перекладины забора (линия лавы в текстуре стены, 44/144).
+        // Зелёные открывают огонь чуть дальше от башни, не вплотную к забору.
+        this.siegeY = this.wallTop - 140;
         const railFromTop = wallHeight * (44 / 144);
-        // Диаметр полукруга чуть врезается в забор — без щели.
         this.platformY = this.wallTop + railFromTop + 8;
     }
 

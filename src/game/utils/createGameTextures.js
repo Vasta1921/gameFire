@@ -24,6 +24,13 @@ export function createGameTextures(scene) {
         mid: 0x4ade80,
         core: 0xecfccb,
     });
+    createSparkTexture(scene, "sparkStar", {
+        glow: 0x93c5fd,
+        mid: 0xe0f2fe,
+        core: 0xffffff,
+    });
+    createMeteorTexture(scene);
+    createBlackHoleTexture(scene);
 }
 
 function createBackgroundTexture(scene) {
@@ -31,35 +38,48 @@ function createBackgroundTexture(scene) {
     const height = 1280;
 
     createTexture(scene, "background", width, height, (g) => {
-        g.fillStyle(0x08081a, 1);
+        g.fillStyle(0x070712, 1);
         g.fillRect(0, 0, width, height);
-
-        g.fillStyle(0x1a0a25, 0.35);
-        g.fillEllipse(120, 980, 420, 260, 48);
-        g.fillEllipse(560, 420, 380, 240, 48);
-        g.fillStyle(0x0c1230, 0.4);
-        g.fillEllipse(360, 200, 500, 180, 48);
 
         const random = mulberry32(20260903);
 
-        for (let i = 0; i < 420; i += 1) {
+        // Туманности: облака из кругов, без крупных овалов.
+        const clouds = [
+            { x: 160, y: 280, color: 0x3b1d6e, count: 18 },
+            { x: 540, y: 520, color: 0x1e3a5f, count: 16 },
+            { x: 280, y: 860, color: 0x4a1548, count: 20 },
+            { x: 580, y: 1080, color: 0x12203a, count: 14 },
+        ];
+        clouds.forEach((cloud) => {
+            for (let i = 0; i < cloud.count; i += 1) {
+                const ox = (random() - 0.5) * 280;
+                const oy = (random() - 0.5) * 180;
+                const radius = 28 + random() * 70;
+                g.fillStyle(cloud.color, 0.06 + random() * 0.08);
+                g.fillCircle(cloud.x + ox, cloud.y + oy, radius);
+            }
+        });
+
+        for (let i = 0; i < 560; i += 1) {
             const x = Math.floor(random() * width);
             const y = Math.floor(random() * height);
             const shade = random();
-            const color = shade > 0.7 ? 0xc8d8ff : shade > 0.35 ? 0xffffff : 0x8a9bb8;
-            g.fillStyle(color, 0.55 + shade * 0.45);
-            g.fillRect(x, y, 1, 1);
+            const color = shade > 0.65 ? 0xffffff : shade > 0.35 ? 0xdbeafe : 0x93c5fd;
+            g.fillStyle(color, 0.7 + shade * 0.3);
+            const size = shade > 0.88 ? 2 : 1;
+            g.fillRect(x, y, size, size);
         }
 
-        for (let i = 0; i < 28; i += 1) {
-            const x = Math.floor(random() * (width - 4)) + 2;
-            const y = Math.floor(random() * (height - 4)) + 2;
-            g.fillStyle(0xf4f7ff, 0.95);
-            g.fillRect(x, y, 1, 1);
-            g.fillRect(x - 1, y, 1, 1);
-            g.fillRect(x + 1, y, 1, 1);
-            g.fillRect(x, y - 1, 1, 1);
-            g.fillRect(x, y + 1, 1, 1);
+        for (let i = 0; i < 42; i += 1) {
+            const x = Math.floor(random() * (width - 6)) + 3;
+            const y = Math.floor(random() * (height - 6)) + 3;
+            g.fillStyle(0xffffff, 1);
+            g.fillRect(x, y, 2, 2);
+            g.fillStyle(0xbfdbfe, 0.85);
+            g.fillRect(x - 2, y, 1, 2);
+            g.fillRect(x + 3, y, 1, 2);
+            g.fillRect(x, y - 2, 2, 1);
+            g.fillRect(x, y + 3, 2, 1);
         }
     });
 }
@@ -202,6 +222,38 @@ function createOrbTexture(scene) {
         g.fillRoundedRect(43, 78, 10, 24, 4);
         g.fillStyle(0xffe4e6, 1);
         g.fillRoundedRect(46, 96, 6, 10, 3);
+    });
+}
+
+function createMeteorTexture(scene) {
+    createTexture(scene, "meteor", 64, 28, (g) => {
+        g.fillStyle(0xff6a1a, 0.35);
+        g.fillEllipse(32, 14, 64, 22, 32);
+        g.fillStyle(0x7c2d12, 1);
+        g.fillEllipse(38, 14, 28, 16, 32);
+        g.fillStyle(0xa16207, 1);
+        g.fillEllipse(40, 14, 18, 12, 32);
+        g.fillStyle(0xffedd5, 0.9);
+        g.fillEllipse(44, 12, 8, 5, 24);
+        g.fillStyle(0xff7a22, 0.7);
+        g.fillEllipse(18, 14, 24, 8, 24);
+    });
+}
+
+function createBlackHoleTexture(scene) {
+    createTexture(scene, "blackHole", 128, 128, (g) => {
+        g.fillStyle(0x3b0764, 0.35);
+        g.fillCircle(64, 64, 60);
+        g.fillStyle(0x6b21a8, 0.45);
+        g.fillEllipse(64, 64, 118, 42, 40);
+        g.fillStyle(0xfb923c, 0.75);
+        g.fillEllipse(64, 64, 96, 26, 40);
+        g.fillStyle(0xfde68a, 0.55);
+        g.fillEllipse(64, 64, 78, 14, 40);
+        g.fillStyle(0x0a0010, 1);
+        g.fillCircle(64, 64, 26);
+        g.fillStyle(0x000000, 1);
+        g.fillCircle(64, 64, 18);
     });
 }
 

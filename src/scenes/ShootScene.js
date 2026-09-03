@@ -10,6 +10,7 @@ import {
 } from "../game/combat/setupBulletEnemyCollision.js";
 import { Hud } from "../game/ui/Hud.js";
 import { ExplosionFx } from "../game/fx/ExplosionFx.js";
+import { SpaceBackdrop } from "../game/fx/SpaceBackdrop.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
 
 /** Главная сцена: крепость, стена, враги и HUD. */
@@ -29,7 +30,7 @@ export class ShootScene extends Phaser.Scene {
         this.sfx = getSoundFx(this.game);
         createGameTextures(this);
 
-        this.add.tileSprite(360, 640, 720, 1280, "background");
+        this.backdrop = new SpaceBackdrop(this);
 
         this.playerShots = new ProjectileSystem(this, {
             textureKey: "redBullet",
@@ -115,7 +116,8 @@ export class ShootScene extends Phaser.Scene {
         this.input.on("pointerout", () => this.autoFire.stop());
     }
 
-    update(time) {
+    update(time, delta) {
+        this.backdrop.update(time, delta);
         if (this.isGameOver) return;
 
         const pointer = this.input.activePointer;
