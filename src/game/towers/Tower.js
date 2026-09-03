@@ -9,7 +9,7 @@ export class Tower {
             key = "tower",
             depth = 1,
             fireRateMs = 150,
-            turretConfigs = [{ offsetX: 0, offsetY: -10 }],
+            turretConfigs = [{ offsetX: 0, offsetY: -64 }],
         } = options;
 
         this.sprite = scene.physics.add.sprite(x, y, key);
@@ -21,7 +21,7 @@ export class Tower {
 
         this.turrets = turretConfigs.map((cfg) => {
             const turretX = this.sprite.x + (cfg.offsetX ?? 0);
-            const turretY = this.sprite.y + (cfg.offsetY ?? -10);
+            const turretY = this.sprite.y + (cfg.offsetY ?? -64);
             return new Turret(scene, turretX, turretY, cfg);
         });
     }

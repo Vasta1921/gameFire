@@ -7,7 +7,7 @@ export class Turret {
             key = "turret",
             rotationOffset = 0,
             depth = 2,
-            muzzleOffset = 8,
+            muzzleOffset = 32,
             spread = 6,
             bulletSpeed = 500,
             bulletWidth = 10,

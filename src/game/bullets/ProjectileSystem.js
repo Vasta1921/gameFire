@@ -7,7 +7,10 @@ export class ProjectileSystem {
             textureKey = "redBullet",
             sparkKey = "spark",
             maxSize = 2000,
+            trailTint = [0xff2200, 0xff6611, 0xffaa44],
         } = options;
+
+        this.defaultTextureKey = textureKey;
 
         this.group = scene.physics.add.group({
             defaultKey: textureKey,
@@ -20,7 +23,7 @@ export class ProjectileSystem {
             speed: { min: 8, max: 36 },
             scale: { start: 0.45, end: 0 },
             alpha: { start: 0.85, end: 0 },
-            tint: [0xff2200, 0xff6611, 0xffaa44],
+            tint: trailTint,
             blendMode: "ADD",
             emitting: false,
             gravityY: 0,
@@ -55,12 +58,17 @@ export class ProjectileSystem {
             depth = 2,
             damageMin = 1,
             damageMax = 3,
+            team = "player",
+            textureKey = this.defaultTextureKey,
         } = options;
 
         bullet.damage = Phaser.Math.Between(damageMin, damageMax);
+        bullet.team = team;
 
+        bullet.setTexture(textureKey);
         bullet.setActive(true);
         bullet.setVisible(true);
+        bullet.clearTint();
         bullet.setPosition(x, y);
         bullet.setDepth(depth);
         bullet.setDisplaySize(width, height);
@@ -88,6 +96,8 @@ export class ProjectileSystem {
     }
 
     recycle(bullet) {
+        bullet.team = null;
+        bullet.clearTint();
         bullet.disableBody(true, true);
     }
 

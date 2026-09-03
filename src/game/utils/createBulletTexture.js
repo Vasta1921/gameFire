@@ -1,22 +1,30 @@
 import { createTexture } from "./createTexture.js";
 
 /**
- * Гладкая капсула: внешнее свечение, красное тело, светлая сердцевина.
+ * Гладкая капсула: внешнее свечение, тело, светлая сердцевина.
  */
-export function createBulletTexture(scene, key, width, height) {
+export function createBulletTexture(scene, key, width, height, palette = {}) {
+    const {
+        glow = 0xff1a00,
+        outer = 0xe01010,
+        body = 0xff3b2e,
+        inner = 0xff8a5c,
+        core = 0xfff3e0,
+    } = palette;
+
     createTexture(scene, key, width, height, (graphics) => {
         const cx = width / 2;
         const cy = height / 2;
 
-        graphics.fillStyle(0xff1a00, 0.28);
+        graphics.fillStyle(glow, 0.28);
         graphics.fillEllipse(cx, cy, width, height);
-        graphics.fillStyle(0xe01010, 0.9);
+        graphics.fillStyle(outer, 0.9);
         graphics.fillEllipse(cx, cy, width * 0.72, height * 0.84);
-        graphics.fillStyle(0xff3b2e, 1);
+        graphics.fillStyle(body, 1);
         graphics.fillEllipse(cx, cy, width * 0.5, height * 0.7);
-        graphics.fillStyle(0xff8a5c, 1);
+        graphics.fillStyle(inner, 1);
         graphics.fillEllipse(cx, cy, width * 0.3, height * 0.48);
-        graphics.fillStyle(0xfff3e0, 1);
+        graphics.fillStyle(core, 1);
         graphics.fillEllipse(cx, cy - height * 0.14, width * 0.16, height * 0.2);
     });
 }
