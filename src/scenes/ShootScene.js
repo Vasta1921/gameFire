@@ -9,6 +9,8 @@ import {
     setupBulletBaseCollision,
 } from "../game/combat/setupBulletEnemyCollision.js";
 import { Hud } from "../game/ui/Hud.js";
+import { ExplosionFx } from "../game/fx/ExplosionFx.js";
+import { getSoundFx } from "../game/audio/SoundFx.js";
 
 /** Главная сцена: крепость, стена, враги и HUD. */
 export class ShootScene extends Phaser.Scene {
@@ -22,6 +24,9 @@ export class ShootScene extends Phaser.Scene {
 
     create() {
         this.isGameOver = false;
+        this.isRestarting = false;
+        this.skipRestart = false;
+        this.sfx = getSoundFx(this.game);
         createGameTextures(this);
 
         this.add.tileSprite(360, 640, 720, 1280, "background");
@@ -37,6 +42,8 @@ export class ShootScene extends Phaser.Scene {
             trailTint: [0x22ff55, 0x88ffaa, 0xddffee],
         });
 
+        this.explosions = new ExplosionFx(this);
+
         this.base = new Base(this, { maxHp: 15, depth: 1 });
 
         this.enemyManager = new EnemyManager(this, {
@@ -49,15 +56,19 @@ export class ShootScene extends Phaser.Scene {
             key: "tower",
             depth: 2,
             fireRateMs: 150,
+            displayWidth: 90,
+            displayHeight: 48,
             turretConfigs: [
                 {
                     offsetX: 0,
-                    offsetY: -64,
+                    offsetY: -28,
                     key: "turret",
                     depth: 3,
                     spread: 8,
-                    muzzleOffset: 32,
-                    bulletSpeed: 500,
+                    muzzleOffset: 14,
+                    displayWidth: 24,
+                    displayHeight: 48,
+                    bulletSpeed: 1000,
                     damageMin: 1,
                     damageMax: 3,
                 },
@@ -93,6 +104,7 @@ export class ShootScene extends Phaser.Scene {
         });
 
         this.input.on("pointerdown", () => {
+            this.sfx.unlock();
             if (this.isGameOver) return;
             this.autoFire.start();
         });
@@ -117,6 +129,7 @@ export class ShootScene extends Phaser.Scene {
         if (this.isGameOver) return;
         const pointer = this.input.activePointer;
         this.tower.shootAll(this.playerShots, pointer);
+        this.sfx.shoot();
     }
 
     /** Попадание игрока: пуля 1–3 урона, враг падает при hp ≤ 0. */
@@ -127,12 +140,15 @@ export class ShootScene extends Phaser.Scene {
         const damage = bullet.damage ?? 1;
         const hitX = bullet.x;
         const hitY = bullet.y;
+        const kind = enemy.enemyType?.id === "orb" ? "red" : "green";
 
         this.playerShots.recycle(bullet);
-        this.playerShots.sparkBurst(hitX, hitY);
+        this.playerShots.sparkBurst(hitX, hitY, 6);
 
         enemy.hp = (enemy.hp ?? 5) - damage;
         if (enemy.hp <= 0) {
+            this.explosions.burst(hitX, hitY, kind);
+            this.sfx.explode(kind);
             this.hud.addScore(enemy.scoreValue ?? 10);
             enemy.destroy();
             return;
@@ -167,13 +183,23 @@ export class ShootScene extends Phaser.Scene {
         this.autoFire.stop();
         this.enemyManager.pause();
         this.physics.pause();
-        this.hud.showGameOver(() => this.tryRestart());
+        this.hud.showGameOver(
+            () => this.tryRestart(),
+            () => this.goToMenu()
+        );
     }
 
     tryRestart() {
-        if (!this.isGameOver || this.isRestarting) return;
+        if (!this.isGameOver || this.isRestarting || this.skipRestart) return;
         this.isRestarting = true;
         this.physics.resume();
         this.scene.restart();
+    }
+
+    goToMenu() {
+        if (this.isRestarting) return;
+        this.isRestarting = true;
+        this.physics.resume();
+        this.scene.start("MenuScene");
     }
 }

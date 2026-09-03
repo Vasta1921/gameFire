@@ -7,18 +7,21 @@ export class Turret {
             key = "turret",
             rotationOffset = 0,
             depth = 2,
-            muzzleOffset = 32,
+            muzzleOffset = 14,
             spread = 6,
             bulletSpeed = 500,
             bulletWidth = 10,
             bulletHeight = 22,
             damageMin = 1,
             damageMax = 3,
+            displayWidth = 24,
+            displayHeight = 48,
         } = options;
 
         this.sprite = scene.add.sprite(x, y, key);
         // Точка вращения — низ ствола, чтобы дуло качалось вокруг основания.
         this.sprite.setOrigin(0.5, 1);
+        this.sprite.setDisplaySize(displayWidth, displayHeight);
         this.sprite.setDepth(depth);
 
         this.rotationOffset = rotationOffset;

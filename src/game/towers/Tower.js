@@ -9,19 +9,24 @@ export class Tower {
             key = "tower",
             depth = 1,
             fireRateMs = 150,
-            turretConfigs = [{ offsetX: 0, offsetY: -64 }],
+            displayWidth = 90,
+            displayHeight = 48,
+            originX = 0.5,
+            originY = 1,
+            turretConfigs = [{ offsetX: 0, offsetY: -28 }],
         } = options;
 
         this.sprite = scene.physics.add.sprite(x, y, key);
+        this.sprite.setOrigin(originX, originY);
+        this.sprite.setDisplaySize(displayWidth, displayHeight);
         this.sprite.setImmovable(true);
-        this.sprite.setCollideWorldBounds(true);
         this.sprite.setDepth(depth);
 
         this.fireRateMs = fireRateMs;
 
         this.turrets = turretConfigs.map((cfg) => {
             const turretX = this.sprite.x + (cfg.offsetX ?? 0);
-            const turretY = this.sprite.y + (cfg.offsetY ?? -64);
+            const turretY = this.sprite.y + (cfg.offsetY ?? -displayHeight + 6);
             return new Turret(scene, turretX, turretY, cfg);
         });
     }

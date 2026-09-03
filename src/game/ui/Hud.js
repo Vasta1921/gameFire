@@ -27,7 +27,7 @@ export class Hud {
         this.baseText.setColor(hp <= 5 ? "#ff6b6b" : "#ffb4a8");
     }
 
-    showGameOver(onPlayAgain) {
+    showGameOver(onPlayAgain, onMenu) {
         const { width, height } = this.scene.cameras.main;
 
         const overlay = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.62);
@@ -50,7 +50,7 @@ export class Hud {
         scoreLine.setOrigin(0.5);
         scoreLine.setDepth(21);
 
-        const button = this.scene.add.text(width / 2, height / 2 + 70, "Сыграть снова", {
+        const button = this.scene.add.text(width / 2, height / 2 + 50, "Сыграть снова", {
             fontSize: "36px",
             fill: "#111111",
             backgroundColor: "#ff6b4a",
@@ -59,8 +59,28 @@ export class Hud {
         button.setOrigin(0.5);
         button.setDepth(21);
         button.setInteractive({ useHandCursor: true });
-        button.on("pointerup", onPlayAgain);
+        button.on("pointerup", (pointer, _x, _y, event) => {
+            event?.stopPropagation?.();
+            onPlayAgain();
+        });
         button.on("pointerover", () => button.setStyle({ backgroundColor: "#ff8a6a" }));
         button.on("pointerout", () => button.setStyle({ backgroundColor: "#ff6b4a" }));
+
+        if (onMenu) {
+            const menuBtn = this.scene.add.text(width / 2, height / 2 + 130, "В меню", {
+                fontSize: "28px",
+                fill: "#ffe8d6",
+            });
+            menuBtn.setOrigin(0.5);
+            menuBtn.setDepth(21);
+            menuBtn.setInteractive({ useHandCursor: true });
+            menuBtn.on("pointerdown", () => {
+                this.scene.skipRestart = true;
+            });
+            menuBtn.on("pointerup", (pointer, _x, _y, event) => {
+                event?.stopPropagation?.();
+                onMenu();
+            });
+        }
     }
 }

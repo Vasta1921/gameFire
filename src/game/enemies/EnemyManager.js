@@ -62,6 +62,7 @@ export class EnemyManager {
             ? this.scene.cameras.main.centerY
             : this.base.siegeY;
         enemy.clearTint();
+        enemy.setDisplaySize(32, 36);
         enemy.setVelocity(0, type.speedY);
     }
 

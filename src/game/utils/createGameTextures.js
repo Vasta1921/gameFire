@@ -1,7 +1,7 @@
 import { createTexture } from "./createTexture.js";
 import { createBulletTexture, createSparkTexture } from "./createBulletTexture.js";
 
-/** Все игровые текстуры вместо PNG. */
+/** Все игровые текстуры вместо PNG. Крупный холст + маленький display = глаже край. */
 export function createGameTextures(scene) {
     createBackgroundTexture(scene);
     createTowerTexture(scene);
@@ -9,8 +9,8 @@ export function createGameTextures(scene) {
     createWallTexture(scene);
     createWalkerTexture(scene);
     createOrbTexture(scene);
-    createBulletTexture(scene, "redBullet", 32, 64);
-    createBulletTexture(scene, "greenBullet", 32, 64, {
+    createBulletTexture(scene, "redBullet", 64, 128);
+    createBulletTexture(scene, "greenBullet", 64, 128, {
         glow: 0x1aff44,
         outer: 0x12a832,
         body: 0x33dd55,
@@ -18,9 +18,14 @@ export function createGameTextures(scene) {
         core: 0xeaffea,
     });
     createSparkTexture(scene, "spark");
+    createSparkTexture(scene, "sparkRed");
+    createSparkTexture(scene, "sparkGreen", {
+        glow: 0x16a34a,
+        mid: 0x4ade80,
+        core: 0xecfccb,
+    });
 }
 
-/** Тёмный звёздный фон под размер экрана 720×1280. */
 function createBackgroundTexture(scene) {
     const width = 720;
     const height = 1280;
@@ -30,10 +35,10 @@ function createBackgroundTexture(scene) {
         g.fillRect(0, 0, width, height);
 
         g.fillStyle(0x1a0a25, 0.35);
-        g.fillEllipse(120, 980, 420, 260);
-        g.fillEllipse(560, 420, 380, 240);
+        g.fillEllipse(120, 980, 420, 260, 48);
+        g.fillEllipse(560, 420, 380, 240, 48);
         g.fillStyle(0x0c1230, 0.4);
-        g.fillEllipse(360, 200, 500, 180);
+        g.fillEllipse(360, 200, 500, 180, 48);
 
         const random = mulberry32(20260903);
 
@@ -59,136 +64,144 @@ function createBackgroundTexture(scene) {
     });
 }
 
-/** Крепость 128×128: чёрный камень и трещины лавы. */
+/** Гарнизон: полукруг на заборе (низ текстуры обрезает круг — получается купол). */
 function createTowerTexture(scene) {
-    createTexture(scene, "tower", 128, 128, (g) => {
+    const w = 270;
+    const h = 144;
+    const cx = w / 2;
+    const cy = h;
+    const r = w / 2 - 4;
+
+    createTexture(scene, "tower", w, h, (g) => {
         g.fillStyle(0x070707, 1);
-        g.fillRoundedRect(0, 16, 128, 112, 16);
-        g.fillStyle(0x161210, 1);
-        g.fillRoundedRect(4, 8, 120, 112, 16);
-        g.fillStyle(0x2a1c18, 1);
-        g.fillRoundedRect(12, 24, 104, 88, 12);
+        g.fillCircle(cx, cy, r);
+        g.fillStyle(0x1c1410, 1);
+        g.fillCircle(cx, cy, r - 10);
+        g.fillStyle(0x2e1c16, 1);
+        g.fillCircle(cx, cy, r - 24);
 
         g.fillStyle(0x5a1408, 1);
-        g.fillRect(8, 20, 112, 12);
+        g.fillRect(18, h - 16, w - 36, 16);
+        g.fillStyle(0xff3a12, 0.95);
+        g.fillRect(22, h - 12, w - 44, 7);
+        g.fillStyle(0xffc266, 0.7);
+        g.fillRect(40, h - 10, w - 80, 3);
 
-        g.fillStyle(0xff2200, 1);
-        g.fillRect(36, 32, 8, 72);
-        g.fillRect(36, 64, 48, 8);
-        g.fillRect(80, 48, 8, 40);
-        g.fillStyle(0xff6a1a, 1);
-        g.fillRect(40, 40, 4, 48);
-        g.fillRect(40, 64, 32, 4);
-        g.fillStyle(0xffcc66, 1);
-        g.fillRect(40, 44, 4, 16);
-
-        g.fillStyle(0x0a0a0a, 1);
-        g.fillCircle(32, 96, 8);
-        g.fillCircle(96, 96, 8);
-        g.fillStyle(0xff3300, 0.85);
-        g.fillCircle(32, 96, 4);
-        g.fillCircle(96, 96, 4);
+        g.fillStyle(0xff2200, 0.95);
+        g.fillRoundedRect(cx - 8, 28, 16, 78, 6);
+        g.fillRoundedRect(cx - 8, 70, 64, 14, 5);
+        g.fillStyle(0xff7a22, 1);
+        g.fillRect(cx - 4, 36, 8, 62);
+        g.fillStyle(0xffe08a, 0.85);
+        g.fillRect(cx - 2, 40, 4, 22);
     });
 }
 
-/** Ствол 64×128: тёмный металл, раскалённое дуло. */
+/** Ствол 3×, на экране уменьшаем. */
 function createTurretTexture(scene) {
-    createTexture(scene, "turret", 64, 128, (g) => {
+    const w = 96;
+    const h = 192;
+    createTexture(scene, "turret", w, h, (g) => {
         g.fillStyle(0x0a0a0a, 1);
-        g.fillRoundedRect(8, 24, 48, 104, 8);
-        g.fillStyle(0x1c1412, 1);
-        g.fillRoundedRect(12, 32, 40, 88, 8);
-        g.fillStyle(0x2c1a16, 1);
-        g.fillRect(20, 40, 24, 64);
+        g.fillRoundedRect(18, 36, 60, 150, 16);
+        g.fillStyle(0x241814, 1);
+        g.fillRoundedRect(24, 48, 48, 128, 14);
+        g.fillStyle(0x3a2218, 1);
+        g.fillRoundedRect(32, 64, 32, 96, 10);
 
         g.fillStyle(0x7a1208, 1);
-        g.fillRect(12, 8, 40, 40);
+        g.fillRoundedRect(22, 12, 52, 56, 14);
         g.fillStyle(0xff2a00, 1);
-        g.fillRect(16, 0, 32, 36);
+        g.fillRoundedRect(28, 0, 40, 52, 12);
         g.fillStyle(0xff7a22, 1);
-        g.fillRect(20, 0, 24, 20);
+        g.fillRoundedRect(34, 0, 28, 28, 10);
         g.fillStyle(0xffe08a, 1);
-        g.fillRect(24, 0, 16, 8);
+        g.fillRoundedRect(40, 0, 16, 12, 6);
 
         g.fillStyle(0x111111, 1);
-        g.fillRect(4, 104, 56, 24);
-        g.fillStyle(0xff3300, 0.7);
-        g.fillRect(16, 112, 32, 8);
+        g.fillRoundedRect(12, 156, 72, 36, 10);
+        g.fillStyle(0xff3300, 0.75);
+        g.fillRoundedRect(28, 168, 40, 12, 4);
     });
 }
 
-/** Стена-забор на всю ширину экрана. */
+/** Забор 2× по разрешению, на экране 720×72. */
 function createWallTexture(scene) {
-    const width = 720;
-    const height = 80;
+    const width = 1440;
+    const height = 144;
 
     createTexture(scene, "wall", width, height, (g) => {
         g.fillStyle(0x070707, 1);
-        g.fillRect(0, 18, width, 62);
-        g.fillStyle(0x1a1412, 1);
-        g.fillRect(0, 24, width, 50);
+        g.fillRect(0, 36, width, 108);
+        g.fillStyle(0x1c1612, 1);
+        g.fillRect(0, 48, width, 88);
         g.fillStyle(0x3a1810, 1);
-        g.fillRect(0, 20, width, 8);
-        g.fillStyle(0xff2a00, 0.85);
-        g.fillRect(0, 22, width, 3);
+        g.fillRect(0, 40, width, 14);
+        g.fillStyle(0xff2a00, 0.9);
+        g.fillRect(0, 44, width, 5);
+        g.fillStyle(0xffcc66, 0.45);
+        g.fillRect(0, 45, width, 2);
 
-        for (let x = 0; x < width; x += 60) {
+        for (let i = -12; i <= 12; i += 1) {
+            const postW = 44;
+            const step = 120;
+            const x = width / 2 - postW / 2 + i * step;
+            if (x < -postW || x > width) continue;
+
             g.fillStyle(0x0d0c0b, 1);
-            g.fillRect(x + 8, 0, 22, 36);
+            g.fillRoundedRect(x, 0, postW, 64, 8);
             g.fillStyle(0x2a1c18, 1);
-            g.fillRect(x + 11, 3, 16, 28);
+            g.fillRoundedRect(x + 6, 6, 32, 50, 6);
             g.fillStyle(0xff3300, 1);
-            g.fillRect(x + 16, 8, 6, 18);
+            g.fillRoundedRect(x + 16, 14, 12, 34, 4);
             g.fillStyle(0xffcc66, 0.9);
-            g.fillRect(x + 17, 10, 3, 8);
+            g.fillRect(x + 19, 18, 6, 14);
         }
 
         g.fillStyle(0x050505, 1);
-        g.fillRect(0, 70, width, 10);
+        g.fillRect(0, 128, width, 16);
     });
 }
 
-/** Зелёный корпус с короткой космической пушкой вниз. */
 function createWalkerTexture(scene) {
-    createTexture(scene, "enemyWalker", 32, 36, (g) => {
+    createTexture(scene, "enemyWalker", 96, 108, (g) => {
         g.fillStyle(0x0f3d18, 1);
-        g.fillRoundedRect(1, 0, 30, 24, 6);
+        g.fillRoundedRect(6, 0, 84, 72, 18);
         g.fillStyle(0x22c55e, 1);
-        g.fillRoundedRect(3, 2, 26, 20, 5);
+        g.fillRoundedRect(12, 6, 72, 60, 16);
         g.fillStyle(0x166534, 1);
-        g.fillCircle(16, 12, 7);
+        g.fillCircle(48, 36, 20);
         g.fillStyle(0x4ade80, 1);
-        g.fillCircle(16, 11, 4);
+        g.fillCircle(48, 32, 12);
 
         g.fillStyle(0x052e16, 1);
-        g.fillRect(12, 18, 8, 6);
+        g.fillRoundedRect(36, 54, 24, 16, 6);
         g.fillStyle(0x14532d, 1);
-        g.fillRect(13, 20, 6, 15);
+        g.fillRoundedRect(40, 62, 16, 42, 6);
         g.fillStyle(0x86efac, 1);
-        g.fillRect(14, 22, 4, 12);
+        g.fillRoundedRect(43, 68, 10, 34, 4);
         g.fillStyle(0xecfccb, 1);
-        g.fillRect(15, 32, 2, 4);
+        g.fillRoundedRect(46, 94, 6, 12, 3);
     });
 }
 
-/** Красный шар с пушкой, стреляет с середины карты. */
 function createOrbTexture(scene) {
-    createTexture(scene, "enemyOrb", 32, 36, (g) => {
+    createTexture(scene, "enemyOrb", 96, 108, (g) => {
         g.fillStyle(0x7f1d1d, 1);
-        g.fillCircle(16, 14, 14);
+        g.fillCircle(48, 42, 42);
         g.fillStyle(0xdc2626, 1);
-        g.fillCircle(16, 14, 11);
+        g.fillCircle(48, 42, 32);
         g.fillStyle(0xf87171, 1);
-        g.fillCircle(12, 10, 5);
+        g.fillCircle(36, 30, 14);
 
         g.fillStyle(0x450a0a, 1);
-        g.fillRect(12, 22, 8, 5);
+        g.fillRoundedRect(36, 66, 24, 14, 6);
         g.fillStyle(0x7f1d1d, 1);
-        g.fillRect(13, 24, 6, 11);
+        g.fillRoundedRect(40, 72, 16, 30, 6);
         g.fillStyle(0xfca5a5, 1);
-        g.fillRect(14, 26, 4, 9);
+        g.fillRoundedRect(43, 78, 10, 24, 4);
         g.fillStyle(0xffe4e6, 1);
-        g.fillRect(15, 33, 2, 3);
+        g.fillRoundedRect(46, 96, 6, 10, 3);
     });
 }
 

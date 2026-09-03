@@ -1,4 +1,5 @@
 import { ShootScene } from './scenes/ShootScene.js';
+import { MenuScene } from './scenes/MenuScene.js';
 
 // Конфиг Phaser: вертикальный экран, физика Arcade без гравитации.
 const config = {
@@ -10,6 +11,8 @@ const config = {
     height: 1280,
     backgroundColor: '#000000',
     pixelArt: false,
+    antialias: true,
+    roundPixels: false,
     physics: {
         default: 'arcade',
         arcade: {
@@ -18,6 +21,7 @@ const config = {
         }
     },
     scene: [
+        MenuScene,
         ShootScene
     ],
     scale: {

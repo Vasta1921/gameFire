@@ -12,20 +12,24 @@ export class Base {
         this.hp = maxHp;
 
         const { width, height } = scene.cameras.main;
-        const wallHeight = 80;
+        const wallHeight = 72;
 
         this.sprite = scene.physics.add.sprite(width / 2, height - wallHeight / 2, "wall");
+        this.sprite.setDisplaySize(width, wallHeight);
         this.sprite.setImmovable(true);
         this.sprite.setDepth(depth);
 
         if (this.sprite.body) {
             this.sprite.body.allowGravity = false;
-            this.sprite.body.setSize(width, wallHeight, true);
+            this.sprite.body.setSize(this.sprite.frame.width, this.sprite.frame.height, true);
         }
 
         this.wallTop = this.sprite.y - wallHeight / 2;
         this.siegeY = this.wallTop - 48;
-        this.platformY = this.wallTop - 56;
+        // Верх перекладины забора (линия лавы в текстуре стены, 44/144).
+        const railFromTop = wallHeight * (44 / 144);
+        // Диаметр полукруга чуть врезается в забор — без щели.
+        this.platformY = this.wallTop + railFromTop + 8;
     }
 
     getAimPoint() {
