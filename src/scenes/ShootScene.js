@@ -53,7 +53,7 @@ export class ShootScene extends Phaser.Scene {
                     depth: 2,
                     spread: 6,
                     muzzleOffset: 6,
-                    bulletSpeed: 500,
+                    bulletSpeed: 1000,
                 },
             ],
         });
