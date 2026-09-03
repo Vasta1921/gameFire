@@ -62,7 +62,11 @@ export class EnemyManager {
             ? this.scene.cameras.main.centerY
             : this.base.siegeY;
         enemy.clearTint();
-        enemy.setDisplaySize(32, 36);
+        if (type.id === "walker") {
+            enemy.setDisplaySize(26, 46);
+        } else {
+            enemy.setDisplaySize(32, 36);
+        }
         enemy.setVelocity(0, type.speedY);
     }
 

@@ -10,3 +10,10 @@ export function createTexture(scene, key, width, height, draw) {
     graphics.generateTexture(key, width, height);
     graphics.destroy();
 }
+
+export function replaceTexture(scene, key, createFn) {
+    if (scene.textures.exists(key)) {
+        scene.textures.remove(key);
+    }
+    createFn();
+}

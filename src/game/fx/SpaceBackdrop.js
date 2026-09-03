@@ -4,7 +4,8 @@ export class SpaceBackdrop {
         this.scene = scene;
         const { width, height } = scene.cameras.main;
 
-        this.bg = scene.add.tileSprite(width / 2, height / 2, width, height, "background");
+        this.bg = scene.add.image(width / 2, height / 2, "background");
+        this.bg.setDisplaySize(width, height);
         this.bg.setDepth(-5);
 
         this.blackHole = scene.add.image(560, 250, "blackHole");
@@ -22,9 +23,9 @@ export class SpaceBackdrop {
         });
 
         this.stars = scene.add.particles(0, 0, "sparkStar", {
-            lifespan: { min: 900, max: 1600 },
-            speed: { min: 160, max: 380 },
-            angle: { min: -12, max: 12 },
+            lifespan: { min: 900, max: 1800 },
+            speed: { min: 140, max: 460 },
+            angle: { min: 0, max: 360 },
             scale: { start: 0.45, end: 0.05 },
             alpha: { start: 1, end: 0 },
             tint: [0xffffff, 0xdbeafe, 0xfef08a],
@@ -44,10 +45,8 @@ export class SpaceBackdrop {
         });
         this.meteorTrail.setDepth(-3);
 
-        this.meteors = [];
-
         this.starTimer = scene.time.addEvent({
-            delay: 2200,
+            delay: 1800,
             loop: true,
             callback: this.spawnShootingStar,
             callbackScope: this,
@@ -56,40 +55,67 @@ export class SpaceBackdrop {
         this.scheduleMeteor();
     }
 
-    spawnShootingStar() {
+    /** Случайный пролёт по небу, не врезаясь в зону базы внизу. */
+    randomSkyPath() {
         const { width, height } = this.scene.cameras.main;
-        const toRight = Math.random() < 0.5;
-        const x = toRight ? Phaser.Math.Between(-20, 60) : Phaser.Math.Between(width - 60, width + 20);
-        const y = Phaser.Math.Between(80, height * 0.55);
-        this.stars.particleAngle = toRight
-            ? { min: -10, max: 10 }
-            : { min: 170, max: 190 };
-        this.stars.emitParticleAt(x, y, Math.random() < 0.25 ? 2 : 1);
-        this.starTimer.delay = Phaser.Math.Between(1400, 3800);
+        const skyLimit = height * 0.7;
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.max(width, height) * 0.85;
+        const cx = Phaser.Math.Between(40, width - 40);
+        const cy = Phaser.Math.Between(50, skyLimit - 40);
+        const dx = Math.cos(angle);
+        const dy = Math.sin(angle);
+
+        let startX = cx - dx * dist * 0.45;
+        let startY = cy - dy * dist * 0.45;
+        let endX = cx + dx * dist * 0.55;
+        let endY = cy + dy * dist * 0.55;
+
+        if (startY > skyLimit) startY = skyLimit;
+        if (endY > skyLimit) {
+            const span = endY - startY;
+            if (Math.abs(span) > 1) {
+                const t = (skyLimit - startY) / span;
+                if (t > 0 && t < 1) {
+                    endX = startX + (endX - startX) * t;
+                    endY = skyLimit;
+                } else {
+                    endY = skyLimit;
+                }
+            } else {
+                endY = skyLimit;
+            }
+        }
+
+        return { startX, startY, endX, endY, angle };
+    }
+
+    spawnShootingStar() {
+        const path = this.randomSkyPath();
+        this.stars.particleAngle = Phaser.Math.RadToDeg(path.angle);
+        this.stars.emitParticleAt(path.startX, path.startY, Math.random() < 0.3 ? 2 : 1);
+        this.starTimer.delay = Phaser.Math.Between(1100, 3200);
     }
 
     scheduleMeteor() {
-        this.scene.time.delayedCall(Phaser.Math.Between(6000, 14000), () => {
+        this.scene.time.delayedCall(Phaser.Math.Between(5000, 12000), () => {
             this.spawnMeteor();
             this.scheduleMeteor();
         });
     }
 
     spawnMeteor() {
-        const { width, height } = this.scene.cameras.main;
-        const fromLeft = Math.random() < 0.5;
-        const y = Phaser.Math.Between(120, Math.floor(height * 0.52));
-        const startX = fromLeft ? -50 : width + 50;
-        const endX = fromLeft ? width + 50 : -50;
-        const meteor = this.scene.add.image(startX, y, "meteor");
+        const path = this.randomSkyPath();
+        const meteor = this.scene.add.image(path.startX, path.startY, "meteor");
         meteor.setDepth(-2);
         meteor.setDisplaySize(36, 14);
-        meteor.setRotation(fromLeft ? 0 : Math.PI);
+        meteor.setRotation(path.angle);
 
         this.scene.tweens.add({
             targets: meteor,
-            x: endX,
-            duration: Phaser.Math.Between(2200, 3400),
+            x: path.endX,
+            y: path.endY,
+            duration: Phaser.Math.Between(1800, 3200),
             ease: "Linear",
             onUpdate: () => {
                 this.meteorTrail.emitParticleAt(meteor.x, meteor.y, 1);
@@ -99,8 +125,6 @@ export class SpaceBackdrop {
     }
 
     update(_time, delta) {
-        this.bg.tilePositionY -= 0.12 * (delta / 16.67);
-        this.bg.tilePositionX += 0.03 * (delta / 16.67);
         this.blackHole.rotation += 0.00035 * delta;
     }
 }

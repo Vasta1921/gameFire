@@ -1,4 +1,4 @@
-import { createTexture } from "./createTexture.js";
+import { createTexture, replaceTexture } from "./createTexture.js";
 import { createBulletTexture, createSparkTexture } from "./createBulletTexture.js";
 
 /** Все игровые текстуры вместо PNG. Крупный холст + маленький display = глаже край. */
@@ -37,50 +37,65 @@ function createBackgroundTexture(scene) {
     const width = 720;
     const height = 1280;
 
-    createTexture(scene, "background", width, height, (g) => {
-        g.fillStyle(0x070712, 1);
-        g.fillRect(0, 0, width, height);
+    replaceTexture(scene, "background", () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+
+        ctx.fillStyle = "#06060f";
+        ctx.fillRect(0, 0, width, height);
 
         const random = mulberry32(20260903);
 
-        // Туманности: облака из кругов, без крупных овалов.
-        const clouds = [
-            { x: 160, y: 280, color: 0x3b1d6e, count: 18 },
-            { x: 540, y: 520, color: 0x1e3a5f, count: 16 },
-            { x: 280, y: 860, color: 0x4a1548, count: 20 },
-            { x: 580, y: 1080, color: 0x12203a, count: 14 },
+        const nebulae = [
+            { x: 180, y: 240, r: 260, rgb: "92, 48, 160", a: 0.28 },
+            { x: 520, y: 380, r: 300, rgb: "30, 70, 140", a: 0.26 },
+            { x: 300, y: 720, r: 280, rgb: "110, 30, 90", a: 0.22 },
+            { x: 560, y: 980, r: 240, rgb: "24, 50, 110", a: 0.24 },
+            { x: 120, y: 1100, r: 220, rgb: "70, 40, 130", a: 0.2 },
         ];
-        clouds.forEach((cloud) => {
-            for (let i = 0; i < cloud.count; i += 1) {
-                const ox = (random() - 0.5) * 280;
-                const oy = (random() - 0.5) * 180;
-                const radius = 28 + random() * 70;
-                g.fillStyle(cloud.color, 0.06 + random() * 0.08);
-                g.fillCircle(cloud.x + ox, cloud.y + oy, radius);
+
+        nebulae.forEach((n) => {
+            for (let i = 0; i < 7; i += 1) {
+                const x = n.x + (random() - 0.5) * n.r * 0.7;
+                const y = n.y + (random() - 0.5) * n.r * 0.55;
+                const radius = n.r * (0.35 + random() * 0.55);
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+                const a0 = n.a * (0.45 + random() * 0.55);
+                gradient.addColorStop(0, `rgba(${n.rgb},${a0})`);
+                gradient.addColorStop(0.45, `rgba(${n.rgb},${a0 * 0.35})`);
+                gradient.addColorStop(1, `rgba(${n.rgb},0)`);
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
             }
         });
 
-        for (let i = 0; i < 560; i += 1) {
-            const x = Math.floor(random() * width);
-            const y = Math.floor(random() * height);
+        for (let i = 0; i < 620; i += 1) {
+            const x = random() * width;
+            const y = random() * height;
             const shade = random();
-            const color = shade > 0.65 ? 0xffffff : shade > 0.35 ? 0xdbeafe : 0x93c5fd;
-            g.fillStyle(color, 0.7 + shade * 0.3);
-            const size = shade > 0.88 ? 2 : 1;
-            g.fillRect(x, y, size, size);
+            const a = 0.75 + shade * 0.25;
+            if (shade > 0.62) ctx.fillStyle = `rgba(255,255,255,${a})`;
+            else if (shade > 0.32) ctx.fillStyle = `rgba(219,234,254,${a})`;
+            else ctx.fillStyle = `rgba(147,197,253,${a})`;
+            const size = shade > 0.9 ? 2.2 : shade > 0.7 ? 1.4 : 1;
+            ctx.fillRect(x, y, size, size);
         }
 
-        for (let i = 0; i < 42; i += 1) {
-            const x = Math.floor(random() * (width - 6)) + 3;
-            const y = Math.floor(random() * (height - 6)) + 3;
-            g.fillStyle(0xffffff, 1);
-            g.fillRect(x, y, 2, 2);
-            g.fillStyle(0xbfdbfe, 0.85);
-            g.fillRect(x - 2, y, 1, 2);
-            g.fillRect(x + 3, y, 1, 2);
-            g.fillRect(x, y - 2, 2, 1);
-            g.fillRect(x, y + 3, 2, 1);
+        for (let i = 0; i < 36; i += 1) {
+            const x = 4 + random() * (width - 8);
+            const y = 4 + random() * (height - 8);
+            ctx.fillStyle = "rgba(255,255,255,0.95)";
+            ctx.fillRect(x, y, 2, 2);
+            ctx.fillStyle = "rgba(191,219,254,0.7)";
+            ctx.fillRect(x - 2, y, 6, 1);
+            ctx.fillRect(x, y - 2, 1, 6);
         }
+
+        scene.textures.addCanvas("background", canvas);
     });
 }
 
@@ -184,24 +199,34 @@ function createWallTexture(scene) {
 }
 
 function createWalkerTexture(scene) {
-    createTexture(scene, "enemyWalker", 96, 108, (g) => {
-        g.fillStyle(0x0f3d18, 1);
-        g.fillRoundedRect(6, 0, 84, 72, 18);
-        g.fillStyle(0x22c55e, 1);
-        g.fillRoundedRect(12, 6, 72, 60, 16);
-        g.fillStyle(0x166534, 1);
-        g.fillCircle(48, 36, 20);
-        g.fillStyle(0x4ade80, 1);
-        g.fillCircle(48, 32, 12);
+    replaceTexture(scene, "enemyWalker", () => {
+        createTexture(scene, "enemyWalker", 72, 128, (g) => {
+            g.fillStyle(0x14532d, 1);
+            g.fillTriangle(4, 48, 36, 22, 36, 78);
+            g.fillTriangle(68, 48, 36, 22, 36, 78);
 
-        g.fillStyle(0x052e16, 1);
-        g.fillRoundedRect(36, 54, 24, 16, 6);
-        g.fillStyle(0x14532d, 1);
-        g.fillRoundedRect(40, 62, 16, 42, 6);
-        g.fillStyle(0x86efac, 1);
-        g.fillRoundedRect(43, 68, 10, 34, 4);
-        g.fillStyle(0xecfccb, 1);
-        g.fillRoundedRect(46, 94, 6, 12, 3);
+            g.fillStyle(0x166534, 1);
+            g.fillRoundedRect(22, 10, 28, 88, 12);
+            g.fillStyle(0x22c55e, 1);
+            g.fillRoundedRect(25, 16, 22, 78, 10);
+            g.fillStyle(0x4ade80, 1);
+            g.fillEllipse(36, 52, 16, 48, 32);
+
+            g.fillStyle(0xbbf7d0, 1);
+            g.fillEllipse(36, 46, 10, 18, 28);
+
+            g.fillStyle(0x052e16, 1);
+            g.fillCircle(28, 16, 6);
+            g.fillCircle(44, 16, 6);
+            g.fillStyle(0x86efac, 0.95);
+            g.fillCircle(28, 14, 3);
+            g.fillCircle(44, 14, 3);
+
+            g.fillStyle(0x14532d, 1);
+            g.fillTriangle(22, 92, 50, 92, 36, 124);
+            g.fillStyle(0x86efac, 1);
+            g.fillTriangle(30, 96, 42, 96, 36, 118);
+        });
     });
 }
 

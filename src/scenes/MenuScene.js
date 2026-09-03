@@ -12,7 +12,7 @@ export class MenuScene extends Phaser.Scene {
         this.sfx = getSoundFx(this.game);
 
         const { width, height } = this.cameras.main;
-        this.add.tileSprite(width / 2, height / 2, width, height, "background");
+        this.add.image(width / 2, height / 2, "background").setDisplaySize(width, height);
 
         this.add.text(width / 2, 180, "OVERLORD RISING", {
             fontSize: "52px",
