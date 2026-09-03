@@ -1,3 +1,7 @@
+/**
+ * Автоогонь по удержанию: первый выстрел сразу,
+ * дальше — по таймеру с задержкой getDelay().
+ */
 export class AutoFireController {
     constructor(scene, options = {}) {
         this.scene = scene;
@@ -32,10 +36,10 @@ export class AutoFireController {
         }
     }
 
+    /** Перезапускает таймер, если во время стрельбы сменилась скорострельность. */
     refreshRate() {
         if (!this.isFiring) return;
         this.stop();
         this.start();
     }
 }
-

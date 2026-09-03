@@ -1,5 +1,6 @@
-    import { ShootScene } from './scenes/ShootScene.js';
+import { ShootScene } from './scenes/ShootScene.js';
 
+// Конфиг Phaser: вертикальный экран, физика Arcade без гравитации.
 const config = {
     type: Phaser.AUTO,
     title: 'Overlord Rising',
@@ -26,4 +27,3 @@ const config = {
 }
 
 new Phaser.Game(config);
-            

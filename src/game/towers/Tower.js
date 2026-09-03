@@ -1,5 +1,6 @@
 import { Turret } from "./Turret.js";
 
+/** Башня внизу экрана и набор турелей на ней. */
 export class Tower {
     constructor(scene, x, y, options = {}) {
         this.scene = scene;
@@ -33,6 +34,7 @@ export class Tower {
         this.turrets.forEach((turret) => turret.shoot(projectileSystem, pointer));
     }
 
+    /** Применяет апгрейд: скорострельность башни и параметры всех турелей. */
     applyUpgrade(upgrade = {}) {
         if (typeof upgrade.fireRateMs === "number") {
             this.fireRateMs = Math.max(30, upgrade.fireRateMs);
@@ -44,6 +46,8 @@ export class Tower {
             "muzzleOffset",
             "bulletWidth",
             "bulletHeight",
+            "damageMin",
+            "damageMax",
         ];
 
         this.turrets.forEach((turret) => {
@@ -55,4 +59,3 @@ export class Tower {
         });
     }
 }
-

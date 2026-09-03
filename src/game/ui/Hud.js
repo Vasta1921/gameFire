@@ -1,3 +1,4 @@
+/** Экранный интерфейс: счёт в левом верхнем углу. */
 export class Hud {
     constructor(scene) {
         this.scene = scene;
@@ -15,4 +16,3 @@ export class Hud {
         this.scoreText.setText(`Score: ${this.score}`);
     }
 }
-

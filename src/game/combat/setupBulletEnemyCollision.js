@@ -1,3 +1,4 @@
+/** Регистрирует overlap пуль и врагов; при касании вызывается onHit. */
 export function setupBulletEnemyCollision(scene, projectileSystem, enemyManager, onHit) {
     scene.physics.add.overlap(
         projectileSystem.group,
@@ -7,4 +8,3 @@ export function setupBulletEnemyCollision(scene, projectileSystem, enemyManager,
         scene
     );
 }
-

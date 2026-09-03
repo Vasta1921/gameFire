@@ -1,3 +1,4 @@
+/** Спавн врагов сверху экрана с заданным интервалом. */
 export class EnemyManager {
     constructor(scene, options = {}) {
         this.scene = scene;
@@ -7,11 +8,13 @@ export class EnemyManager {
             enemyKeys = ["enemy"],
             spawnDelayMs = 1000,
             speedY = 100,
+            maxHp = 5,
         } = options;
 
         this.enemyKeys = enemyKeys;
         this.spawnDelayMs = spawnDelayMs;
         this.speedY = speedY;
+        this.maxHp = maxHp;
         this.group = scene.physics.add.group();
 
         this.spawnTimer = scene.time.addEvent({
@@ -27,7 +30,9 @@ export class EnemyManager {
         const x = Phaser.Math.Between(20, cameraWidth - 20);
         const key = Phaser.Utils.Array.GetRandom(this.enemyKeys);
         const enemy = this.group.create(x, 0, key);
+        enemy.maxHp = this.maxHp;
+        enemy.hp = this.maxHp;
+        enemy.clearTint();
         enemy.setVelocityY(this.speedY);
     }
 }
-

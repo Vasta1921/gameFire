@@ -1,3 +1,4 @@
+/** Турель: поворачивается к курсору и стреляет с небольшим боковым разбросом. */
 export class Turret {
     constructor(scene, x, y, options = {}) {
         this.scene = scene;
@@ -6,14 +7,17 @@ export class Turret {
             key = "turret",
             rotationOffset = 0,
             depth = 2,
-            muzzleOffset = 6,
+            muzzleOffset = 8,
             spread = 6,
             bulletSpeed = 500,
-            bulletWidth = 8,
-            bulletHeight = 20,
+            bulletWidth = 10,
+            bulletHeight = 22,
+            damageMin = 1,
+            damageMax = 3,
         } = options;
 
         this.sprite = scene.add.sprite(x, y, key);
+        // Точка вращения — низ ствола, чтобы дуло качалось вокруг основания.
         this.sprite.setOrigin(0.5, 1);
         this.sprite.setDepth(depth);
 
@@ -23,6 +27,8 @@ export class Turret {
         this.bulletSpeed = bulletSpeed;
         this.bulletWidth = bulletWidth;
         this.bulletHeight = bulletHeight;
+        this.damageMin = damageMin;
+        this.damageMax = damageMax;
     }
 
     update(pointer) {
@@ -32,6 +38,7 @@ export class Turret {
             pointer.x,
             pointer.y
         );
+        // Спрайт смотрит вверх, Phaser считает 0 вправо — сдвигаем на 90°.
         this.sprite.setRotation(angle + this.rotationOffset + Math.PI / 2);
     }
 
@@ -46,11 +53,12 @@ export class Turret {
 
         const dirX = Math.cos(shootAngle);
         const dirY = Math.sin(shootAngle);
+        // Перпендикуляр к направлению выстрела — для смещения влево/вправо.
         const perpX = -dirY;
         const perpY = dirX;
 
         const spreadOffset = Phaser.Math.FloatBetween(-this.spread, this.spread);
-        console.log(spreadOffset)
+        // Старт пули чуть впереди дула, центр спрайта по длине пули.
         const bulletCenterAlongDir = this.muzzleOffset - this.bulletHeight / 2;
 
         const startX = this.sprite.x + dirX * bulletCenterAlongDir + perpX * spreadOffset;
@@ -60,8 +68,9 @@ export class Turret {
             speed: this.bulletSpeed,
             width: this.bulletWidth,
             height: this.bulletHeight,
-            depth: 0,
+            depth: 2,
+            damageMin: this.damageMin,
+            damageMax: this.damageMax,
         });
     }
 }
-
