@@ -1,4 +1,4 @@
-/** Декор сцены: медленный дрейф неба, редкие звёзды, метеоры и чёрная дыра. */
+/** Декор сцены: пыль, падающие звёзды, метеоры и чёрная дыра. */
 export class SpaceBackdrop {
     constructor(scene) {
         this.scene = scene;
@@ -21,6 +21,21 @@ export class SpaceBackdrop {
             repeat: -1,
             ease: "Sine.easeInOut",
         });
+
+        this.dust = scene.add.particles(0, 0, "sparkStar", {
+            x: { min: 0, max: width },
+            y: { min: 0, max: height * 0.72 },
+            lifespan: { min: 2200, max: 4800 },
+            speed: { min: 6, max: 22 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 0.16, end: 0 },
+            alpha: { start: 0.55, end: 0 },
+            tint: [0xffffff, 0x93c5fd, 0xc4b5fd],
+            blendMode: "ADD",
+            frequency: 70,
+            quantity: 1,
+        });
+        this.dust.setDepth(-4);
 
         this.stars = scene.add.particles(0, 0, "sparkStar", {
             lifespan: { min: 900, max: 1800 },
@@ -45,8 +60,11 @@ export class SpaceBackdrop {
         });
         this.meteorTrail.setDepth(-3);
 
+        this.meteorGroup = scene.physics.add.group();
+        this.spawnsPaused = false;
+
         this.starTimer = scene.time.addEvent({
-            delay: 1800,
+            delay: 1400,
             loop: true,
             callback: this.spawnShootingStar,
             callbackScope: this,
@@ -55,7 +73,6 @@ export class SpaceBackdrop {
         this.scheduleMeteor();
     }
 
-    /** Случайный пролёт по небу, не врезаясь в зону базы внизу. */
     randomSkyPath() {
         const { width, height } = this.scene.cameras.main;
         const skyLimit = height * 0.7;
@@ -91,40 +108,76 @@ export class SpaceBackdrop {
     }
 
     spawnShootingStar() {
+        if (!this.isGameplayActive()) return;
         const path = this.randomSkyPath();
         this.stars.particleAngle = Phaser.Math.RadToDeg(path.angle);
         this.stars.emitParticleAt(path.startX, path.startY, Math.random() < 0.3 ? 2 : 1);
-        this.starTimer.delay = Phaser.Math.Between(1100, 3200);
+        this.starTimer.delay = Phaser.Math.Between(800, 2400);
     }
 
     scheduleMeteor() {
-        this.scene.time.delayedCall(Phaser.Math.Between(5000, 12000), () => {
-            this.spawnMeteor();
+        this.scene.time.delayedCall(Phaser.Math.Between(4000, 9000), () => {
+            if (this.isGameplayActive()) this.spawnMeteor();
             this.scheduleMeteor();
         });
     }
 
-    spawnMeteor() {
-        const path = this.randomSkyPath();
-        const meteor = this.scene.add.image(path.startX, path.startY, "meteor");
-        meteor.setDepth(-2);
-        meteor.setDisplaySize(36, 14);
-        meteor.setRotation(path.angle);
+    isGameplayActive() {
+        const scene = this.scene;
+        return !this.spawnsPaused
+            && !scene.isGameOver
+            && !scene.isPaused
+            && !scene.betweenWaves;
+    }
 
-        this.scene.tweens.add({
-            targets: meteor,
-            x: path.endX,
-            y: path.endY,
-            duration: Phaser.Math.Between(1800, 3200),
-            ease: "Linear",
-            onUpdate: () => {
-                this.meteorTrail.emitParticleAt(meteor.x, meteor.y, 1);
-            },
-            onComplete: () => meteor.destroy(),
+    setSpawnsPaused(paused) {
+        this.spawnsPaused = paused;
+        if (paused) this.clearMeteors();
+    }
+
+    clearMeteors() {
+        this.meteorGroup.getChildren().slice().forEach((meteor) => {
+            if (meteor?.destroy) meteor.destroy();
         });
+    }
+
+    spawnMeteor() {
+        if (!this.isGameplayActive()) return;
+        const path = this.randomSkyPath();
+        const meteor = this.meteorGroup.create(path.startX, path.startY, "meteor");
+        meteor.setDepth(-2);
+        meteor.setDisplaySize(40, 16);
+        meteor.setRotation(path.angle);
+        meteor.prizeCoins = Phaser.Math.Between(18, 28);
+        meteor.prizeScore = 25;
+
+        if (meteor.body) {
+            meteor.body.allowGravity = false;
+            meteor.body.setSize(meteor.frame.width * 0.7, meteor.frame.height * 0.7, true);
+        }
+
+        const speed = Phaser.Math.Between(170, 280);
+        meteor.setVelocity(
+            Math.cos(path.angle) * speed,
+            Math.sin(path.angle) * speed
+        );
     }
 
     update(_time, delta) {
         this.blackHole.rotation += 0.00035 * delta;
+        if (!this.isGameplayActive()) return;
+
+        const { width, height } = this.scene.cameras.main;
+
+        this.meteorGroup.children.iterate((meteor) => {
+            if (!meteor || !meteor.active) return;
+            this.meteorTrail.emitParticleAt(meteor.x, meteor.y, 1);
+            if (
+                meteor.x < -80 || meteor.x > width + 80 ||
+                meteor.y < -80 || meteor.y > height + 80
+            ) {
+                meteor.destroy();
+            }
+        });
     }
 }

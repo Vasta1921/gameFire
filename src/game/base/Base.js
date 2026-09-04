@@ -45,6 +45,17 @@ export class Base {
         return this.hp;
     }
 
+    heal(amount) {
+        if (this.hp <= 0) return 0;
+        if (this.hp >= this.maxHp) {
+            this.maxHp += 2;
+            this.hp = this.maxHp;
+            return this.hp;
+        }
+        this.hp = Math.min(this.maxHp, this.hp + Math.max(0, Math.floor(amount)));
+        return this.hp;
+    }
+
     isDestroyed() {
         return this.hp <= 0;
     }

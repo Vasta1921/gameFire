@@ -64,6 +64,11 @@ export class ProjectileSystem {
 
         bullet.damage = Phaser.Math.Between(damageMin, damageMax);
         bullet.team = team;
+        bullet.pierce = options.pierce ?? 0;
+        bullet.explodes = Boolean(options.explodes);
+        bullet.didSplash = false;
+        bullet.lastHit = null;
+        bullet.hitList = [];
 
         bullet.setTexture(textureKey);
         bullet.setActive(true);
@@ -74,6 +79,7 @@ export class ProjectileSystem {
         bullet.setDisplaySize(width, height);
         // Текстура «стоит» вертикально, поэтому +90°, чтобы совпасть с направлением полёта.
         bullet.setRotation(angle + Math.PI / 2);
+        if (bullet.explodes) bullet.setTint(0xffaa66);
 
         if (bullet.body) {
             bullet.body.enable = true;
@@ -97,8 +103,19 @@ export class ProjectileSystem {
 
     recycle(bullet) {
         bullet.team = null;
+        bullet.pierce = 0;
+        bullet.explodes = false;
+        bullet.didSplash = false;
+        bullet.lastHit = null;
+        bullet.hitList = [];
         bullet.clearTint();
         bullet.disableBody(true, true);
+    }
+
+    recycleAll() {
+        this.group.children.each((bullet) => {
+            if (bullet?.active) this.recycle(bullet);
+        });
     }
 
     /** Выключает пули, улетевшие за видимую область камеры. */

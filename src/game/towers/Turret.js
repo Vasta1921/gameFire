@@ -16,6 +16,10 @@ export class Turret {
             damageMax = 3,
             displayWidth = 24,
             displayHeight = 48,
+            pelletCount = 1,
+            doubleChance = 0,
+            pierce = 0,
+            explodeChance = 0,
         } = options;
 
         this.sprite = scene.add.sprite(x, y, key);
@@ -32,6 +36,10 @@ export class Turret {
         this.bulletHeight = bulletHeight;
         this.damageMin = damageMin;
         this.damageMax = damageMax;
+        this.pelletCount = pelletCount;
+        this.doubleChance = doubleChance;
+        this.pierce = pierce;
+        this.explodeChance = explodeChance;
     }
 
     update(pointer) {
@@ -45,7 +53,7 @@ export class Turret {
         this.sprite.setRotation(angle + this.rotationOffset + Math.PI / 2);
     }
 
-    shoot(projectileSystem, pointer) {
+    shoot(projectileSystem, pointer, extraSpread = 0) {
         const angle = Phaser.Math.Angle.Between(
             this.sprite.x,
             this.sprite.y,
@@ -60,9 +68,8 @@ export class Turret {
         const perpX = -dirY;
         const perpY = dirX;
 
-        const spreadOffset = Phaser.Math.FloatBetween(-this.spread, this.spread);
-        // Старт пули чуть впереди дула, центр спрайта по длине пули.
-        const bulletCenterAlongDir = this.muzzleOffset - this.bulletHeight / 2;
+        const spreadOffset = Phaser.Math.FloatBetween(-this.spread * 0.15, this.spread * 0.15) + extraSpread * 0.25;
+        const bulletCenterAlongDir = this.muzzleOffset;
 
         const startX = this.sprite.x + dirX * bulletCenterAlongDir + perpX * spreadOffset;
         const startY = this.sprite.y + dirY * bulletCenterAlongDir + perpY * spreadOffset;
@@ -74,6 +81,19 @@ export class Turret {
             depth: 2,
             damageMin: this.damageMin,
             damageMax: this.damageMax,
+            pierce: this.pierce,
+            explodes: this.explodeChance > 0 && Math.random() < this.explodeChance,
         });
+    }
+
+    fireVolley(projectileSystem, pointer) {
+        let pellets = this.pelletCount ?? 1;
+        if (this.doubleChance > 0 && Math.random() < this.doubleChance) {
+            pellets += 1;
+        }
+        const offsets = pellets === 1 ? [0] : pellets === 2 ? [-6, 6] : [-8, 0, 8];
+        for (let i = 0; i < pellets; i += 1) {
+            this.shoot(projectileSystem, pointer, offsets[i] ?? 0);
+        }
     }
 }

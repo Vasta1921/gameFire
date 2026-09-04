@@ -36,7 +36,20 @@ export class Tower {
     }
 
     shootAll(projectileSystem, pointer) {
-        this.turrets.forEach((turret) => turret.shoot(projectileSystem, pointer));
+        this.turrets.forEach((turret) => turret.fireVolley(projectileSystem, pointer));
+    }
+
+    applyCombatStats(stats) {
+        this.fireRateMs = stats.fireRateMs;
+        this.turrets.forEach((turret) => {
+            turret.damageMin = stats.damageMin;
+            turret.damageMax = stats.damageMax;
+            turret.spread = stats.spread;
+            turret.pelletCount = stats.pelletCount;
+            turret.doubleChance = stats.doubleChance ?? 0;
+            turret.pierce = stats.pierce ?? 0;
+            turret.explodeChance = stats.explodeChance ?? 0;
+        });
     }
 
     /** Применяет апгрейд: скорострельность башни и параметры всех турелей. */
@@ -53,6 +66,7 @@ export class Tower {
             "bulletHeight",
             "damageMin",
             "damageMax",
+            "pelletCount",
         ];
 
         this.turrets.forEach((turret) => {

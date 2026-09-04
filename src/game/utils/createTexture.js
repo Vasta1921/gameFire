@@ -12,8 +12,8 @@ export function createTexture(scene, key, width, height, draw) {
 }
 
 export function replaceTexture(scene, key, createFn) {
-    if (scene.textures.exists(key)) {
-        scene.textures.remove(key);
-    }
+    // Не удаляем существующую текстуру: textures.remove ломает WebGL
+    // (Text.updateText → glTexture null) при возврате в меню.
+    if (scene.textures.exists(key)) return;
     createFn();
 }

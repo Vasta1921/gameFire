@@ -31,6 +31,8 @@ export function createGameTextures(scene) {
     });
     createMeteorTexture(scene);
     createBlackHoleTexture(scene);
+    createFichcoinTexture(scene);
+    createBossTexture(scene);
 }
 
 function createBackgroundTexture(scene) {
@@ -138,25 +140,25 @@ function createTurretTexture(scene) {
     const h = 192;
     createTexture(scene, "turret", w, h, (g) => {
         g.fillStyle(0x0a0a0a, 1);
-        g.fillRoundedRect(18, 36, 60, 150, 16);
+        g.fillRoundedRect(8, 36, 80, 150, 18);
         g.fillStyle(0x241814, 1);
-        g.fillRoundedRect(24, 48, 48, 128, 14);
+        g.fillRoundedRect(16, 48, 64, 128, 16);
         g.fillStyle(0x3a2218, 1);
-        g.fillRoundedRect(32, 64, 32, 96, 10);
+        g.fillRoundedRect(24, 64, 48, 96, 12);
 
         g.fillStyle(0x7a1208, 1);
-        g.fillRoundedRect(22, 12, 52, 56, 14);
+        g.fillRoundedRect(14, 12, 68, 56, 16);
         g.fillStyle(0xff2a00, 1);
-        g.fillRoundedRect(28, 0, 40, 52, 12);
+        g.fillRoundedRect(20, 0, 56, 52, 14);
         g.fillStyle(0xff7a22, 1);
-        g.fillRoundedRect(34, 0, 28, 28, 10);
+        g.fillRoundedRect(28, 0, 40, 28, 12);
         g.fillStyle(0xffe08a, 1);
-        g.fillRoundedRect(40, 0, 16, 12, 6);
+        g.fillRoundedRect(36, 0, 24, 12, 6);
 
         g.fillStyle(0x111111, 1);
-        g.fillRoundedRect(12, 156, 72, 36, 10);
+        g.fillRoundedRect(6, 156, 84, 36, 12);
         g.fillStyle(0xff3300, 0.75);
-        g.fillRoundedRect(28, 168, 40, 12, 4);
+        g.fillRoundedRect(22, 168, 52, 12, 4);
     });
 }
 
@@ -279,6 +281,59 @@ function createBlackHoleTexture(scene) {
         g.fillCircle(64, 64, 26);
         g.fillStyle(0x000000, 1);
         g.fillCircle(64, 64, 18);
+    });
+}
+
+function createFichcoinTexture(scene) {
+    replaceTexture(scene, "fichcoin", () => {
+        createTexture(scene, "fichcoin", 64, 64, (g) => {
+            g.fillStyle(0xb45309, 1);
+            g.fillCircle(32, 32, 31);
+            g.fillStyle(0xf59e0b, 1);
+            g.fillCircle(32, 32, 27);
+            g.fillStyle(0xfde68a, 1);
+            g.fillCircle(32, 32, 22);
+            g.fillStyle(0xfbbf24, 1);
+            g.fillCircle(32, 32, 20);
+
+            g.fillStyle(0x1c1917, 1);
+            g.fillTriangle(18, 22, 24, 10, 30, 22);
+            g.fillTriangle(34, 22, 40, 10, 46, 22);
+
+            g.fillStyle(0x44403c, 1);
+            g.fillCircle(32, 36, 14);
+            g.fillStyle(0x292524, 1);
+            g.fillCircle(32, 38, 12);
+
+            g.fillStyle(0xfacc15, 1);
+            g.fillCircle(27, 34, 3);
+            g.fillCircle(37, 34, 3);
+            g.fillStyle(0x111111, 1);
+            g.fillCircle(27, 35, 2);
+            g.fillCircle(37, 35, 2);
+
+            g.fillStyle(0x1c1917, 1);
+            g.fillTriangle(32, 38, 29, 42, 35, 42);
+        });
+    });
+}
+
+function createBossTexture(scene) {
+    replaceTexture(scene, "enemyBoss", () => {
+        createTexture(scene, "enemyBoss", 96, 96, (g) => {
+            g.fillStyle(0x1e3a8a, 1);
+            g.fillTriangle(48, 90, 6, 14, 90, 14);
+            g.fillStyle(0x3b82f6, 1);
+            g.fillTriangle(48, 78, 18, 22, 78, 22);
+            g.fillStyle(0x93c5fd, 1);
+            g.fillTriangle(48, 64, 30, 30, 66, 30);
+            g.fillStyle(0x1e3a8a, 1);
+            g.fillCircle(48, 38, 8);
+            g.fillStyle(0xdbeafe, 1);
+            g.fillCircle(48, 36, 4);
+            g.fillStyle(0x60a5fa, 1);
+            g.fillRect(45, 64, 6, 22);
+        });
     });
 }
 
