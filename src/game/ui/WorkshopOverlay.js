@@ -6,7 +6,7 @@ import { addUpgradeRows } from "./upgradeRows.js";
 export class WorkshopOverlay {
     constructor(scene, options) {
         this.scene = scene;
-        this.victory = Boolean(options.victory);
+        this.blockClear = Boolean(options.blockClear);
         this.clearedWave = options.clearedWave ?? 1;
         this.onContinue = options.onContinue;
         this.onMenu = options.onMenu;
@@ -18,25 +18,27 @@ export class WorkshopOverlay {
         dim.setInteractive();
         this.root.add(dim);
 
-        const heading = "Мастерская";
-        const title = scene.add.text(width / 2, 90, heading, {
-            fontSize: "46px",
-            fill: this.victory ? "#fbbf24" : "#ff6b4a",
+        const title = scene.add.text(width / 2, 70, "Мастерская", {
+            fontSize: "42px",
+            fill: this.blockClear ? "#fbbf24" : "#ff6b4a",
             fontStyle: "bold",
         }).setOrigin(0.5);
 
-        const sub = scene.add.text(width / 2, 145, this.victory
-            ? "Босс повержен. Можно улучшить оружие"
+        const nextBlock = this.clearedWave + 1;
+        const sub = scene.add.text(width / 2, 118, this.blockClear
+            ? `Босс волны ${this.clearedWave} повержен. Дальше — с ${nextBlock}`
             : `Волна ${this.clearedWave} пройдена`, {
-            fontSize: "24px",
+            fontSize: "22px",
             fill: "#c4b5a5",
+            align: "center",
+            wordWrap: { width: 640 },
         }).setOrigin(0.5);
 
         this.root.add([title, sub]);
 
-        this.coinBadge = addFichcoinBadge(scene, width / 2 - 40, 200, loadProgress().coins, {
-            scale: 0.6,
-            fontSize: "30px",
+        this.coinBadge = addFichcoinBadge(scene, width / 2 - 40, 165, loadProgress().coins, {
+            scale: 0.55,
+            fontSize: "28px",
             depth: 31,
         });
         this.root.add([this.coinBadge.icon, this.coinBadge.text]);
@@ -45,17 +47,33 @@ export class WorkshopOverlay {
         this.root.add(this.listRoot);
         this.rebuildList();
 
-        const next = scene.add.text(width / 2, height - 90, this.victory ? "В меню" : "Дальше", {
-            fontSize: "34px",
-            fill: "#111111",
-            backgroundColor: "#ff6b4a",
-            padding: { x: 32, y: 14 },
+        if (this.blockClear) {
+            this.addButton(width / 2, height - 150, 420, 64, 0xff6b4a, "#111111", "Дальше (усиления с собой)", () => {
+                this.root.destroy(true);
+                this.onContinue();
+            });
+            this.addButton(width / 2, height - 70, 420, 56, 0x52525b, "#ffe8d6", "В меню (без усилений)", () => {
+                this.root.destroy(true);
+                this.onMenu();
+            });
+        } else {
+            this.addButton(width / 2, height - 80, 280, 64, 0xff6b4a, "#111111", "Дальше", () => {
+                this.root.destroy(true);
+                this.onContinue();
+            });
+        }
+    }
+
+    addButton(x, y, w, h, fill, textColor, label, onClick) {
+        const box = this.scene.add.rectangle(x, y, w, h, fill, 1);
+        box.setInteractive({ useHandCursor: true });
+        const text = this.scene.add.text(x, y, label, {
+            fontSize: "24px",
+            fill: textColor,
+            fontStyle: "bold",
         }).setOrigin(0.5);
-        next.setInteractive({ useHandCursor: true });
-        next.on("pointerup", () => this.close());
-        next.on("pointerover", () => next.setStyle({ backgroundColor: "#ff8a6a" }));
-        next.on("pointerout", () => next.setStyle({ backgroundColor: "#ff6b4a" }));
-        this.root.add(next);
+        box.on("pointerup", onClick);
+        this.root.add([box, text]);
     }
 
     rebuildList() {
@@ -64,19 +82,10 @@ export class WorkshopOverlay {
         const nodes = addUpgradeRows(
             this.scene,
             this.scene.cameras.main.width / 2,
-            320,
+            232,
             loadProgress(),
             () => this.rebuildList()
         );
         this.listRoot.add(nodes);
-    }
-
-    close() {
-        this.root.destroy(true);
-        if (this.victory) {
-            this.onMenu();
-            return;
-        }
-        this.onContinue();
     }
 }

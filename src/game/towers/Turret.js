@@ -8,7 +8,7 @@ export class Turret {
             rotationOffset = 0,
             depth = 2,
             muzzleOffset = 14,
-            spread = 6,
+            spread = 0.16,
             bulletSpeed = 500,
             bulletWidth = 10,
             bulletHeight = 22,
@@ -18,8 +18,10 @@ export class Turret {
             displayHeight = 48,
             pelletCount = 1,
             doubleChance = 0,
+            multiChance = 0,
             pierce = 0,
             explodeChance = 0,
+            homing = false,
         } = options;
 
         this.sprite = scene.add.sprite(x, y, key);
@@ -38,8 +40,10 @@ export class Turret {
         this.damageMax = damageMax;
         this.pelletCount = pelletCount;
         this.doubleChance = doubleChance;
+        this.multiChance = multiChance;
         this.pierce = pierce;
         this.explodeChance = explodeChance;
+        this.homing = homing;
     }
 
     update(pointer) {
@@ -53,26 +57,23 @@ export class Turret {
         this.sprite.setRotation(angle + this.rotationOffset + Math.PI / 2);
     }
 
-    shoot(projectileSystem, pointer, extraSpread = 0) {
+    shoot(projectileSystem, pointer, extraSpread = 0, angleOffset = 0) {
         const angle = Phaser.Math.Angle.Between(
             this.sprite.x,
             this.sprite.y,
             pointer.x,
             pointer.y
         );
-        const shootAngle = angle + this.rotationOffset;
+        const jitter = Phaser.Math.FloatBetween(-this.spread, this.spread);
+        const shootAngle = angle + this.rotationOffset + angleOffset + jitter;
 
         const dirX = Math.cos(shootAngle);
         const dirY = Math.sin(shootAngle);
-        // Перпендикуляр к направлению выстрела — для смещения влево/вправо.
         const perpX = -dirY;
         const perpY = dirX;
 
-        const spreadOffset = Phaser.Math.FloatBetween(-this.spread * 0.15, this.spread * 0.15) + extraSpread * 0.25;
-        const bulletCenterAlongDir = this.muzzleOffset;
-
-        const startX = this.sprite.x + dirX * bulletCenterAlongDir + perpX * spreadOffset;
-        const startY = this.sprite.y + dirY * bulletCenterAlongDir + perpY * spreadOffset;
+        const startX = this.sprite.x + dirX * this.muzzleOffset + perpX * extraSpread;
+        const startY = this.sprite.y + dirY * this.muzzleOffset + perpY * extraSpread;
 
         projectileSystem.shoot(startX, startY, shootAngle, {
             speed: this.bulletSpeed,
@@ -83,17 +84,29 @@ export class Turret {
             damageMax: this.damageMax,
             pierce: this.pierce,
             explodes: this.explodeChance > 0 && Math.random() < this.explodeChance,
+            homing: this.homing,
         });
     }
 
     fireVolley(projectileSystem, pointer) {
-        let pellets = this.pelletCount ?? 1;
-        if (this.doubleChance > 0 && Math.random() < this.doubleChance) {
+        let pellets = 1;
+        if (this.doubleChance > 0 && Math.random() < Math.min(0.5, this.doubleChance)) {
+            pellets = 2;
+        }
+        if (this.multiChance > 0 && Math.random() < Math.min(0.5, this.multiChance)) {
             pellets += 1;
         }
-        const offsets = pellets === 1 ? [0] : pellets === 2 ? [-6, 6] : [-8, 0, 8];
-        for (let i = 0; i < pellets; i += 1) {
-            this.shoot(projectileSystem, pointer, offsets[i] ?? 0);
+        if (pellets <= 1) {
+            this.shoot(projectileSystem, pointer, 0, 0);
+            return;
         }
+        if (pellets === 2) {
+            this.shoot(projectileSystem, pointer, -8, -0.035);
+            this.shoot(projectileSystem, pointer, 8, 0.035);
+            return;
+        }
+        this.shoot(projectileSystem, pointer, -10, -0.04);
+        this.shoot(projectileSystem, pointer, 0, 0);
+        this.shoot(projectileSystem, pointer, 10, 0.04);
     }
 }

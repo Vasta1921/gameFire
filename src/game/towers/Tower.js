@@ -8,7 +8,7 @@ export class Tower {
         const {
             key = "tower",
             depth = 1,
-            fireRateMs = 150,
+            fireRateMs = 280,
             displayWidth = 90,
             displayHeight = 48,
             originX = 0.5,
@@ -45,17 +45,19 @@ export class Tower {
             turret.damageMin = stats.damageMin;
             turret.damageMax = stats.damageMax;
             turret.spread = stats.spread;
-            turret.pelletCount = stats.pelletCount;
+            turret.pelletCount = 1;
             turret.doubleChance = stats.doubleChance ?? 0;
+            turret.multiChance = stats.multiChance ?? 0;
             turret.pierce = stats.pierce ?? 0;
             turret.explodeChance = stats.explodeChance ?? 0;
+            turret.homing = Boolean(stats.homing);
         });
     }
 
     /** Применяет апгрейд: скорострельность башни и параметры всех турелей. */
     applyUpgrade(upgrade = {}) {
         if (typeof upgrade.fireRateMs === "number") {
-            this.fireRateMs = Math.max(30, upgrade.fireRateMs);
+            this.fireRateMs = Math.max(120, upgrade.fireRateMs);
         }
 
         const turretFields = [

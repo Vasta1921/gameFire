@@ -1,8 +1,11 @@
+import { CHANCE_MAX } from "./combatFormat.js";
+
 export function createRunMods() {
     return {
         damage: 0,
         fireRate: 0,
         doubleChance: 0,
+        multiChance: 0,
         pierce: 0,
         explodeChance: 0,
     };
@@ -29,7 +32,7 @@ export const WAVE_PICKS = [
     {
         id: "fireRate",
         title: "Скорострельность",
-        hint: "Стреляет чаще",
+        hint: "Больше выстрелов в секунду",
         apply(run) {
             run.fireRate += 1;
         },
@@ -37,9 +40,17 @@ export const WAVE_PICKS = [
     {
         id: "doubleChance",
         title: "Двойной выстрел",
-        hint: "Шанс двойного выстрела",
+        hint: "Шанс двух пуль за залп",
         apply(run) {
-            run.doubleChance = Math.min(0.75, run.doubleChance + 0.25);
+            run.doubleChance = Math.min(CHANCE_MAX, run.doubleChance + 0.14);
+        },
+    },
+    {
+        id: "multiChance",
+        title: "Мультистрел",
+        hint: "Шанс доп. снаряда за залп",
+        apply(run) {
+            run.multiChance = Math.min(CHANCE_MAX, (run.multiChance || 0) + 0.14);
         },
     },
     {
@@ -71,13 +82,15 @@ export function pickThreeUpgrades() {
 
 export function mergeCombatStats(shopStats, run) {
     return {
-        fireRateMs: Math.max(45, shopStats.fireRateMs - run.fireRate * 18),
+        fireRateMs: Math.max(120, shopStats.fireRateMs - run.fireRate * 12),
         damageMin: shopStats.damageMin + run.damage,
         damageMax: shopStats.damageMax + run.damage,
         spread: shopStats.spread,
-        pelletCount: shopStats.pelletCount,
-        doubleChance: run.doubleChance,
-        pierce: run.pierce,
-        explodeChance: run.explodeChance,
+        pelletCount: 1,
+        doubleChance: Math.min(CHANCE_MAX, (shopStats.doubleChance || 0) + run.doubleChance),
+        multiChance: Math.min(CHANCE_MAX, (shopStats.multiChance || 0) + (run.multiChance || 0)),
+        pierce: (shopStats.pierce || 0) + run.pierce,
+        explodeChance: Math.min(0.8, (shopStats.explodeChance || 0) + run.explodeChance),
+        homing: Boolean(shopStats.homing),
     };
 }

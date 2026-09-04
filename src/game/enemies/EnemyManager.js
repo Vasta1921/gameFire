@@ -42,7 +42,7 @@ const BOSS = {
     coins: 40,
 };
 
-/** Волны 1–10: больше и крепче враги, на 10-й волне синий босс. */
+/** Волны блоками по 10: больше и крепче враги, каждый 10-й — босс. */
 export class EnemyManager {
     constructor(scene, options = {}) {
         this.scene = scene;
@@ -63,10 +63,10 @@ export class EnemyManager {
         this.wave = wave;
         this.paused = false;
         this.waitingClear = true;
-        this.toSpawn = 6 + (wave - 1) * 2;
-        this.bossPending = wave === 10;
-        this.hpBonus = wave - 1;
-        const delay = Math.max(480, 1000 - (wave - 1) * 45);
+        this.toSpawn = Math.min(48, 6 + (wave - 1) * 2);
+        this.bossPending = wave % 10 === 0;
+        this.hpBonus = (wave - 1) + Math.floor((wave - 1) / 10) * 6;
+        const delay = Math.max(340, 920 - (wave - 1) * 22);
 
         if (this.spawnTimer) {
             this.spawnTimer.remove();

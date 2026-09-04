@@ -15,13 +15,17 @@ import { WavePickOverlay } from "../game/ui/WavePickOverlay.js";
 import { ExplosionFx } from "../game/fx/ExplosionFx.js";
 import { SpaceBackdrop } from "../game/fx/SpaceBackdrop.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { addCoins, getCombatStats, loadProgress } from "../game/progress/Progress.js";
+import { addCoins, getCombatStats, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave } from "../game/progress/Progress.js";
 import { createRunMods, mergeCombatStats, pickThreeUpgrades } from "../game/progress/WavePicks.js";
 
 /** Главная сцена: крепость, стена, враги и HUD. */
 export class ShootScene extends Phaser.Scene {
     constructor() {
         super("ShootScene");
+    }
+
+    init(data) {
+        this.menuStartWave = data?.startWave ?? getUnlockedStartWave();
     }
 
     preload() {
@@ -35,7 +39,7 @@ export class ShootScene extends Phaser.Scene {
         this.betweenWaves = false;
         this.workshop = null;
         this.wavePick = null;
-        this.currentWave = 1;
+        this.currentWave = this.menuStartWave || 1;
         this.runMods = createRunMods();
         this.sfx = getSoundFx(this.game);
         createGameTextures(this);
@@ -44,12 +48,12 @@ export class ShootScene extends Phaser.Scene {
 
         this.playerShots = new ProjectileSystem(this, {
             textureKey: "redBullet",
-            maxSize: 5000,
+            maxSize: 80,
         });
 
         this.enemyShots = new ProjectileSystem(this, {
             textureKey: "greenBullet",
-            maxSize: 800,
+            maxSize: 120,
             trailTint: [0x22ff55, 0x88ffaa, 0xddffee],
         });
 
@@ -66,7 +70,7 @@ export class ShootScene extends Phaser.Scene {
         this.tower = new Tower(this, this.cameras.main.centerX, this.base.platformY, {
             key: "tower",
             depth: 2,
-            fireRateMs: 150,
+            fireRateMs: 280,
             displayWidth: 90,
             displayHeight: 48,
             turretConfigs: [
@@ -139,7 +143,7 @@ export class ShootScene extends Phaser.Scene {
 
         const pointer = this.input.activePointer;
         this.tower.update(pointer);
-        this.playerShots.update(this.cameras.main);
+        this.playerShots.update(this.cameras.main, this.enemyManager.group);
         this.enemyShots.update(this.cameras.main);
         this.enemyManager.update(time);
     }
@@ -165,7 +169,7 @@ export class ShootScene extends Phaser.Scene {
         const hitX = bullet.x;
         const hitY = bullet.y;
 
-        this.playerShots.sparkBurst(hitX, hitY, 6);
+        this.playerShots.sparkBurst(hitX, hitY, 3);
         this.damageEnemy(enemy, damage, hitX, hitY);
 
         if (bullet.explodes && !bullet.didSplash) {
@@ -276,6 +280,7 @@ export class ShootScene extends Phaser.Scene {
         this.autoFire.stop();
         this.nextWave = wave + 1;
         this.hud.setPauseVisible(false);
+        recordWaveCleared(wave);
         if (this.isPaused) {
             this.hud.hidePause();
             this.isPaused = false;
@@ -304,17 +309,17 @@ export class ShootScene extends Phaser.Scene {
 
     openAfterWave(wave) {
         if (this.workshop || this.wavePick) return;
-        if (wave >= 10) {
+        if (isBossWave(wave)) {
             this.physics.pause();
             this.workshop = new WorkshopOverlay(this, {
                 clearedWave: wave,
-                victory: true,
+                blockClear: true,
                 onContinue: () => this.continueFromWorkshop(),
                 onMenu: () => this.goToMenu(),
             });
             return;
         }
-        if (wave === 1 || wave === 3 || wave === 5 || wave === 7 || wave === 9) {
+        if (wave % 2 === 1) {
             this.wavePick = new WavePickOverlay(this, {
                 clearedWave: wave,
                 picks: pickThreeUpgrades(),
@@ -373,9 +378,7 @@ export class ShootScene extends Phaser.Scene {
         this.workshop = null;
         this.applyRunStats();
         this.hud.setCoins(loadProgress().coins);
-        this.backdrop.setSpawnsPaused(false);
-        this.physics.resume();
-        this.betweenWaves = false;
+        this.beginNextWave();
     }
 
     endGame() {

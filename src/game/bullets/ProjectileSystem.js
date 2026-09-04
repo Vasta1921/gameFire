@@ -6,38 +6,40 @@ export class ProjectileSystem {
         const {
             textureKey = "redBullet",
             sparkKey = "spark",
-            maxSize = 2000,
+            maxSize = 80,
             trailTint = [0xff2200, 0xff6611, 0xffaa44],
         } = options;
 
         this.defaultTextureKey = textureKey;
+        this.trailSkip = 0;
 
         this.group = scene.physics.add.group({
             defaultKey: textureKey,
             maxSize,
         });
 
-        // След за пулей: вручную emitParticleAt в update.
         this.trail = scene.add.particles(0, 0, sparkKey, {
-            lifespan: 220,
-            speed: { min: 8, max: 36 },
-            scale: { start: 0.45, end: 0 },
-            alpha: { start: 0.85, end: 0 },
+            lifespan: 140,
+            speed: { min: 4, max: 18 },
+            scale: { start: 0.32, end: 0 },
+            alpha: { start: 0.7, end: 0 },
             tint: trailTint,
             blendMode: "ADD",
             emitting: false,
             gravityY: 0,
+            maxParticles: 180,
         });
         this.trail.setDepth(1);
 
         this.burst = scene.add.particles(0, 0, sparkKey, {
-            lifespan: 280,
-            speed: { min: 40, max: 120 },
-            scale: { start: 0.6, end: 0 },
+            lifespan: 200,
+            speed: { min: 30, max: 90 },
+            scale: { start: 0.5, end: 0 },
             alpha: { start: 1, end: 0 },
             tint: [0xff1100, 0xff7722, 0xffee88],
             blendMode: "ADD",
             emitting: false,
+            maxParticles: 80,
         });
         this.burst.setDepth(3);
     }
@@ -69,6 +71,8 @@ export class ProjectileSystem {
         bullet.didSplash = false;
         bullet.lastHit = null;
         bullet.hitList = [];
+        bullet.homing = Boolean(options.homing);
+        bullet.homingSpeed = speed;
 
         bullet.setTexture(textureKey);
         bullet.setActive(true);
@@ -77,14 +81,13 @@ export class ProjectileSystem {
         bullet.setPosition(x, y);
         bullet.setDepth(depth);
         bullet.setDisplaySize(width, height);
-        // Текстура «стоит» вертикально, поэтому +90°, чтобы совпасть с направлением полёта.
         bullet.setRotation(angle + Math.PI / 2);
         if (bullet.explodes) bullet.setTint(0xffaa66);
+        else if (bullet.homing) bullet.setTint(0x66d9ff);
 
         if (bullet.body) {
             bullet.body.enable = true;
             bullet.body.reset(x, y);
-            // Размер тела в пикселях кадра, не displaySize.
             const frameW = bullet.frame.width;
             const frameH = bullet.frame.height;
             bullet.body.setSize(frameW * 0.55, frameH * 0.55, true);
@@ -97,7 +100,7 @@ export class ProjectileSystem {
         );
     }
 
-    sparkBurst(x, y, count = 10) {
+    sparkBurst(x, y, count = 6) {
         this.burst.emitParticleAt(x, y, count);
     }
 
@@ -108,6 +111,7 @@ export class ProjectileSystem {
         bullet.didSplash = false;
         bullet.lastHit = null;
         bullet.hitList = [];
+        bullet.homing = false;
         bullet.clearTint();
         bullet.disableBody(true, true);
     }
@@ -118,22 +122,55 @@ export class ProjectileSystem {
         });
     }
 
-    /** Выключает пули, улетевшие за видимую область камеры. */
-    update(camera) {
+    update(camera, enemyGroup) {
         const view = camera.worldView;
-        this.group.children.each((bullet) => {
-            if (!bullet.active) return;
+        this.trailSkip += 1;
+        const drawTrail = this.trailSkip % 2 === 0;
 
-            this.trail.emitParticleAt(bullet.x, bullet.y, 1);
+        this.group.children.iterate((bullet) => {
+            if (!bullet?.active) return;
+
+            if (bullet.homing && enemyGroup) {
+                steerHoming(bullet, enemyGroup);
+            }
+
+            if (drawTrail) {
+                this.trail.emitParticleAt(bullet.x, bullet.y, 1);
+            }
 
             if (
-                bullet.x < view.x ||
-                bullet.x > view.x + view.width ||
-                bullet.y < view.y ||
-                bullet.y > view.y + view.height
+                bullet.x < view.x - 8 ||
+                bullet.x > view.x + view.width + 8 ||
+                bullet.y < view.y - 8 ||
+                bullet.y > view.y + view.height + 8
             ) {
                 this.recycle(bullet);
             }
         });
     }
+}
+
+function steerHoming(bullet, enemyGroup) {
+    let nearest = null;
+    let best = Infinity;
+    enemyGroup.children.iterate((enemy) => {
+        if (!enemy?.active) return;
+        const dx = enemy.x - bullet.x;
+        const dy = enemy.y - bullet.y;
+        const dist = dx * dx + dy * dy;
+        if (dist < best) {
+            best = dist;
+            nearest = enemy;
+        }
+    });
+    if (!nearest) return;
+
+    const desired = Math.atan2(nearest.y - bullet.y, nearest.x - bullet.x);
+    const vx = bullet.body?.velocity?.x ?? 0;
+    const vy = bullet.body?.velocity?.y ?? 0;
+    const current = Math.atan2(vy, vx);
+    const next = Phaser.Math.Angle.RotateTo(current, desired, 0.1);
+    const speed = bullet.homingSpeed || 500;
+    bullet.setVelocity(Math.cos(next) * speed, Math.sin(next) * speed);
+    bullet.setRotation(next + Math.PI / 2);
 }

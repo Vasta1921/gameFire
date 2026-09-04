@@ -1,27 +1,35 @@
 /**
- * Автоогонь по удержанию: первый выстрел сразу,
- * дальше — по таймеру с задержкой getDelay().
+ * Автоогонь по удержанию. Не чаще getDelay() мс,
+ * даже если жать кнопку вспышками.
  */
 export class AutoFireController {
     constructor(scene, options = {}) {
         this.scene = scene;
         this.timer = null;
         this.isFiring = false;
+        this.lastShotAt = -Infinity;
 
         this.onShoot = options.onShoot ?? (() => {});
-        this.getDelay = options.getDelay ?? (() => 150);
+        this.getDelay = options.getDelay ?? (() => 280);
+    }
+
+    tryShoot() {
+        const now = this.scene.time.now;
+        if (now - this.lastShotAt < this.getDelay()) return;
+        this.lastShotAt = now;
+        this.onShoot();
     }
 
     start() {
         if (this.isFiring) return;
 
         this.isFiring = true;
-        this.onShoot();
+        this.tryShoot();
 
         this.timer = this.scene.time.addEvent({
-            delay: this.getDelay(),
-            callback: this.onShoot,
-            callbackScope: this.scene,
+            delay: 16,
+            callback: this.tryShoot,
+            callbackScope: this,
             loop: true,
         });
     }
@@ -36,7 +44,6 @@ export class AutoFireController {
         }
     }
 
-    /** Перезапускает таймер, если во время стрельбы сменилась скорострельность. */
     refreshRate() {
         if (!this.isFiring) return;
         this.stop();

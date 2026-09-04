@@ -22,7 +22,7 @@ export class Hud {
             fontSize: "26px",
         });
 
-        this.waveText = scene.add.text(16, 96, "Волна 1/10", {
+        this.waveText = scene.add.text(16, 96, "Волна 1  (1–10)", {
             fontSize: "24px",
             fill: "#93c5fd",
         });
@@ -183,7 +183,9 @@ export class Hud {
 
     setWave(wave) {
         this.wave = wave;
-        this.waveText.setText(`Волна ${wave}/10`);
+        const end = Math.ceil(wave / 10) * 10;
+        const start = end - 9;
+        this.waveText.setText(`Волна ${wave}  (${start}–${end})`);
     }
 
     popup(x, y, text, color = "#fbbf24") {

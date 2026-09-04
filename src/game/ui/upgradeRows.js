@@ -1,4 +1,4 @@
-import { SHOP_ITEMS, buyUpgrade, getUpgradeCost } from "../progress/Progress.js";
+import { SHOP_ITEMS, buyUpgrade, getUpgradeCost, formatCoins } from "../progress/Progress.js";
 
 /** Строки улучшений для меню и мастерской. */
 export function addUpgradeRows(scene, x, startY, progress, onBought) {
@@ -7,7 +7,7 @@ export function addUpgradeRows(scene, x, startY, progress, onBought) {
 
     SHOP_ITEMS.forEach((item) => {
         nodes.push(...makeRow(scene, x, y, item, progress, onBought));
-        y += 145;
+        y += 132;
     });
 
     return nodes;
@@ -23,15 +23,19 @@ function makeRow(scene, x, y, item, progress, onBought) {
         fontStyle: "bold",
     });
 
-    const hint = scene.add.text(x - 280, y - 2, item.hint, {
-        fontSize: "18px",
+    const hint = scene.add.text(x - 280, y - 4, item.hint, {
+        fontSize: "16px",
         fill: "#a78a7a",
+        wordWrap: { width: 330 },
     });
 
     const cost = getUpgradeCost(item, progress.upgrades);
     let status;
     if (item.once) {
-        status = progress.upgrades.doubleShot ? "Куплено" : "Ур. 0/1";
+        status = progress.upgrades[item.id] ? "Куплено" : "Ур. 0/1";
+    } else if (item.chancePerLevel) {
+        const chance = Math.round((progress.upgrades[item.id] || 0) * item.chancePerLevel * 100);
+        status = `Ур. ${progress.upgrades[item.id]}/${item.max} · ${chance}%`;
     } else {
         status = `Ур. ${progress.upgrades[item.id]}/${item.max}`;
     }
@@ -41,11 +45,11 @@ function makeRow(scene, x, y, item, progress, onBought) {
         fill: "#c4b5a5",
     });
 
-    const label = cost == null ? "Макс." : `Купить  ${cost}`;
+    const label = cost == null ? "Макс." : `Купить  ${formatCoins(cost)}`;
     const canBuy = cost != null && progress.coins >= cost;
     const btnColor = canBuy ? (item.once ? 0xfbbf24 : 0xff6b4a) : 0x3f3f46;
-    const btn = scene.add.rectangle(x + 170, y, 180, 48, btnColor, 1);
-    const btnText = scene.add.text(x + 170, y, label, {
+    const btn = scene.add.rectangle(x + 190, y, 220, 48, btnColor, 1);
+    const btnText = scene.add.text(x + 190, y, label, {
         fontSize: "22px",
         fill: canBuy ? "#111111" : "#888888",
     }).setOrigin(0.5);
