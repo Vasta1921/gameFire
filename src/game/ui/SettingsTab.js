@@ -1,31 +1,58 @@
 /** Вкладка настроек: звук и прочие переключатели. */
-export function addSettingsTab(scene, { soundEnabled, onToggleSound }) {
+export function addSettingsTab(scene, { soundEnabled, onToggleSound, onAddCoins, onResetProgress }) {
     const { width } = scene.cameras.main;
-    const y = 430;
-    const box = scene.add.rectangle(width / 2, y, 620, 140, 0x161210, 0.94);
+    const nodes = [];
+    nodes.push(...makeRow(scene, width / 2, 430, {
+        title: "Все звуки",
+        hint: "Выстрелы, взрывы и эффекты",
+        label: soundEnabled ? "Вкл" : "Выкл",
+        color: soundEnabled ? 0xff6b4a : 0x3f3f46,
+        textFill: soundEnabled ? "#111111" : "#888888",
+        onClick: onToggleSound,
+    }));
+    nodes.push(...makeRow(scene, width / 2, 578, {
+        title: "+1000 монет",
+        hint: "Временно, для проверки механик",
+        label: "Добавить",
+        color: 0xfbbf24,
+        textFill: "#111111",
+        onClick: onAddCoins,
+    }));
+    nodes.push(...makeRow(scene, width / 2, 726, {
+        title: "Сброс прогресса",
+        hint: "Временно: монеты, апгрейды, моды, волны",
+        label: "Сбросить",
+        color: 0xef4444,
+        textFill: "#111111",
+        onClick: onResetProgress,
+    }));
+    return nodes;
+}
+
+function makeRow(scene, x, y, { title, hint, label, color, textFill, onClick }) {
+    const box = scene.add.rectangle(x, y, 620, 140, 0x161210, 0.94);
     box.setStrokeStyle(2, 0xff3300, 0.8);
 
-    const title = scene.add.text(width / 2 - 280, y - 28, "Все звуки", {
+    const titleText = scene.add.text(x - 280, y - 28, title, {
         fontSize: "28px",
         fill: "#ffe8d6",
         fontStyle: "bold",
     });
 
-    const hint = scene.add.text(width / 2 - 280, y + 12, "Выстрелы, взрывы и эффекты", {
+    const hintText = scene.add.text(x - 280, y + 12, hint, {
         fontSize: "16px",
         fill: "#a78a7a",
         wordWrap: { width: 330 },
     });
 
-    const on = Boolean(soundEnabled);
-    const btn = scene.add.rectangle(width / 2 + 190, y, 220, 48, on ? 0xff6b4a : 0x3f3f46, 1);
-    const btnText = scene.add.text(width / 2 + 190, y, on ? "Вкл" : "Выкл", {
+    const btn = scene.add.rectangle(x + 190, y, 220, 48, color, 1);
+    const btnText = scene.add.text(x + 190, y, label, {
         fontSize: "22px",
-        fill: on ? "#111111" : "#888888",
+        fill: textFill,
     }).setOrigin(0.5);
 
     btn.setInteractive({ useHandCursor: true });
-    btn.on("pointerup", onToggleSound);
+    btn.on("pointerup", onClick);
 
-    return [box, title, hint, btn, btnText];
+    return [box, titleText, hintText, btn, btnText];
 }

@@ -1,6 +1,6 @@
 import { createGameTextures } from "../game/utils/createGameTextures.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled } from "../game/progress/Progress.js";
+import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled, addCoins, resetProgress } from "../game/progress/Progress.js";
 import { addFichcoinBadge } from "../game/ui/FichcoinBadge.js";
 import { addUpgradeRows } from "../game/ui/upgradeRows.js";
 import { addModifiersTab } from "../game/ui/ModifiersTab.js";
@@ -169,6 +169,16 @@ export class MenuScene extends Phaser.Scene {
                 setSoundEnabled(next);
                 this.sfx.setEnabled(next);
                 if (next) this.sfx.unlock();
+                this.time.delayedCall(0, () => this.showTab("settings"));
+            },
+            onAddCoins: () => {
+                addCoins(1000);
+                this.refreshCoinLabel();
+            },
+            onResetProgress: () => {
+                resetProgress();
+                this.sfx.setEnabled(isSoundEnabled());
+                this.refreshCoinLabel();
                 this.time.delayedCall(0, () => this.showTab("settings"));
             },
         });

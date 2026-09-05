@@ -155,6 +155,15 @@ export function addCoins(amount) {
     return data.coins;
 }
 
+/** Временный чит для проверки механик. */
+export function resetProgress() {
+    const soundEnabled = read().soundEnabled !== false;
+    const next = JSON.parse(JSON.stringify(DEFAULT));
+    next.soundEnabled = soundEnabled;
+    write(next);
+    return next;
+}
+
 export function getUnlockedStartWave() {
     return read().unlockedStartWave;
 }
