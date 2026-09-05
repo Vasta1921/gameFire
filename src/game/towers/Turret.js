@@ -93,9 +93,9 @@ export class Turret {
     }
 
     fireVolley(projectileSystem, pointer) {
-        let pellets = 1;
+        let pellets = Math.max(1, this.pelletCount || 1);
         if (this.doubleChance > 0 && Math.random() < Math.min(0.5, this.doubleChance)) {
-            pellets = 2;
+            pellets += 1;
         }
         if (this.multiChance > 0 && Math.random() < Math.min(0.5, this.multiChance)) {
             pellets += 1;
@@ -105,13 +105,10 @@ export class Turret {
             this.shoot(projectileSystem, pointer, 0, 0, base);
             return;
         }
-        if (pellets === 2) {
-            this.shoot(projectileSystem, pointer, -8, 0, base);
-            this.shoot(projectileSystem, pointer, 8, 0, base);
-            return;
+        const spacing = pellets >= 3 ? 10 : 8;
+        const start = -((pellets - 1) / 2) * spacing;
+        for (let i = 0; i < pellets; i += 1) {
+            this.shoot(projectileSystem, pointer, start + i * spacing, 0, base);
         }
-        this.shoot(projectileSystem, pointer, -10, -0.04, base);
-        this.shoot(projectileSystem, pointer, 0, 0, base);
-        this.shoot(projectileSystem, pointer, 10, 0.04, base);
     }
 }

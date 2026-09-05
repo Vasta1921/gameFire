@@ -36,8 +36,10 @@ export function combatStatRows(stats) {
         { label: "Урон", value: `${stats.damageMin}–${stats.damageMax}` },
         { label: "Выстрелов/с", value: formatShotsPerSec(stats.fireRateMs) },
         { label: "Разброс", value: formatSpreadDeg(stats.spread) },
+        { label: "Здоровье", value: String(stats.maxHp ?? 15) },
         { label: "Двойной выстрел", value: formatChance(stats.doubleChance) },
         { label: "Мультистрел", value: formatChance(stats.multiChance) },
+        { label: "Тройной залп", value: (stats.pelletCount || 1) >= 3 ? "да" : "нет" },
         { label: "Наведение", value: stats.homing ? "да" : "нет" },
     ];
 }

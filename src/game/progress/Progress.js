@@ -23,6 +23,8 @@ const STORAGE_KEY = "overlord_rising_progress";
 export const STAT_MAX = 33;
 export const CHANCE_LEVEL_MAX = 50;
 export const CHANCE_PER_LEVEL = 0.01;
+export const BASE_HP = 15;
+export const HP_PER_LEVEL = 1;
 const WAVE_BLOCK = 10;
 
 const DEFAULT = {
@@ -32,6 +34,7 @@ const DEFAULT = {
         damage: 0,
         fireRate: 0,
         spread: 0,
+        health: 0,
         doubleShot: 0,
         multiShot: 0,
     },
@@ -60,6 +63,14 @@ export const SHOP_ITEMS = [
         title: "Кучность",
         hint: "Меньше разброс пуль",
         max: STAT_MAX,
+    },
+    {
+        id: "health",
+        title: "Здоровье",
+        hint: "+1 HP крепости за уровень",
+        max: STAT_MAX,
+        hpPerLevel: HP_PER_LEVEL,
+        baseHp: BASE_HP,
     },
     {
         id: "doubleShot",
@@ -102,6 +113,7 @@ function read() {
                 damage: clampLevel(data.upgrades?.damage, STAT_MAX),
                 fireRate: clampLevel(data.upgrades?.fireRate, STAT_MAX),
                 spread: clampLevel(data.upgrades?.spread, STAT_MAX),
+                health: clampLevel(data.upgrades?.health, STAT_MAX),
                 doubleShot,
                 multiShot,
             },
@@ -220,6 +232,10 @@ export function formatCoins(n) {
     return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
+export function getBaseMaxHp() {
+    return getCombatStats().maxHp;
+}
+
 /** Боевые параметры из купленных уровней. */
 export function getCombatStats() {
     const data = read();
@@ -233,6 +249,7 @@ export function getCombatStats() {
         damageMin: 1 + damage,
         damageMax: 3 + damage,
         spread: Math.max(0.04, 0.16 - spread * 0.0035),
+        maxHp: BASE_HP + (upgrades.health || 0) * HP_PER_LEVEL,
         pelletCount: 1,
         doubleChance: Math.min(CHANCE_MAX, upgrades.doubleShot * CHANCE_PER_LEVEL),
         multiChance: Math.min(CHANCE_MAX, upgrades.multiShot * CHANCE_PER_LEVEL),

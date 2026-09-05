@@ -118,6 +118,19 @@ export const MODIFIERS = [
         damageAdd: -2,
         damageVar: 1,
     },
+    {
+        id: "triad",
+        title: "Тройной залп",
+        hint: "Три пули за выстрел. Меньше разброс, ниже скорострельность.",
+        rarity: RARITY.legendary,
+        cost: 5600,
+        color: 0x22d3ee,
+        tripleShot: true,
+        spreadDegAdd: -6,
+        spreadDegVar: 2,
+        fireRateMsAdd: 140,
+        fireRateMsVar: 28,
+    },
 ];
 
 const BY_ID = new Map(MODIFIERS.map((mod) => [mod.id, mod]));
@@ -161,6 +174,7 @@ export function snapshotModifierBase(mod) {
     if (typeof mod.damageAdd === "number") roll.damageAdd = mod.damageAdd;
     if (typeof mod.fireRateMsAdd === "number") roll.fireRateMsAdd = mod.fireRateMsAdd;
     if (mod.homing) roll.homing = true;
+    if (mod.tripleShot) roll.tripleShot = true;
     roll.tuneLevel = 0;
     roll.extraKeys = [];
     return roll;
@@ -178,6 +192,7 @@ export function rollModifierStats(mod) {
         roll.fireRateMsAdd = rollAround(mod.fireRateMsAdd, mod.fireRateMsVar ?? 20);
     }
     if (mod.homing) roll.homing = true;
+    if (mod.tripleShot) roll.tripleShot = true;
     roll.tuneLevel = 0;
     roll.extraKeys = [];
     return roll;
@@ -252,6 +267,7 @@ export function applyModifiersToStats(stats, equippedIds, rolls) {
             next.damageMax = Math.max(next.damageMin, next.damageMax + rolled.damageAdd);
         }
         if (rolled.homing) next.homing = true;
+        if (rolled.tripleShot) next.pelletCount = Math.max(next.pelletCount || 1, 3);
         if (typeof rolled.doubleChanceAdd === "number") {
             next.doubleChance = Math.min(CHANCE_MAX, (next.doubleChance || 0) + rolled.doubleChanceAdd);
         }
@@ -299,6 +315,7 @@ export function modifierStatLines(mod, roll) {
         }
     }
     if (mod.homing || roll?.homing) lines.push("Самонаводящиеся снаряды");
+    if (mod.tripleShot || roll?.tripleShot) lines.push("тройной выстрел");
     if (roll && typeof roll.doubleChanceAdd === "number") {
         lines.push(`двойной выстрел +${Math.round(roll.doubleChanceAdd * 100)}%`);
     }
@@ -328,6 +345,7 @@ export function nativeTraitIds(mod) {
     if (typeof mod.damageAdd === "number") keys.push("damage");
     if (typeof mod.fireRateMsAdd === "number") keys.push("fire");
     if (mod.homing) keys.push("homing");
+    if (mod.tripleShot) keys.push("triple");
     return keys;
 }
 

@@ -36,6 +36,9 @@ function makeRow(scene, x, y, item, progress, onBought) {
     } else if (item.chancePerLevel) {
         const chance = Math.round((progress.upgrades[item.id] || 0) * item.chancePerLevel * 100);
         status = `Ур. ${progress.upgrades[item.id]}/${item.max} · ${chance}%`;
+    } else if (item.hpPerLevel) {
+        const hp = (item.baseHp || 0) + (progress.upgrades[item.id] || 0) * item.hpPerLevel;
+        status = `Ур. ${progress.upgrades[item.id]}/${item.max} · ${hp} HP`;
     } else {
         status = `Ур. ${progress.upgrades[item.id]}/${item.max}`;
     }

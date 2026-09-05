@@ -86,7 +86,7 @@ export function mergeCombatStats(shopStats, run) {
         damageMin: shopStats.damageMin + run.damage,
         damageMax: shopStats.damageMax + run.damage,
         spread: shopStats.spread,
-        pelletCount: 1,
+        pelletCount: shopStats.pelletCount || 1,
         doubleChance: Math.min(CHANCE_MAX, (shopStats.doubleChance || 0) + run.doubleChance),
         multiChance: Math.min(CHANCE_MAX, (shopStats.multiChance || 0) + (run.multiChance || 0)),
         pierce: (shopStats.pierce || 0) + run.pierce,

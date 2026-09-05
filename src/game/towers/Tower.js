@@ -45,7 +45,7 @@ export class Tower {
             turret.damageMin = stats.damageMin;
             turret.damageMax = stats.damageMax;
             turret.spread = stats.spread;
-            turret.pelletCount = 1;
+            turret.pelletCount = stats.pelletCount || 1;
             turret.doubleChance = stats.doubleChance ?? 0;
             turret.multiChance = stats.multiChance ?? 0;
             turret.pierce = stats.pierce ?? 0;

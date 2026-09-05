@@ -15,7 +15,7 @@ import { WavePickOverlay } from "../game/ui/WavePickOverlay.js";
 import { ExplosionFx } from "../game/fx/ExplosionFx.js";
 import { SpaceBackdrop } from "../game/fx/SpaceBackdrop.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { addCoins, getCombatStats, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave } from "../game/progress/Progress.js";
+import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave } from "../game/progress/Progress.js";
 import { createRunMods, mergeCombatStats, pickThreeUpgrades } from "../game/progress/WavePicks.js";
 
 /** Главная сцена: крепость, стена, враги и HUD. */
@@ -59,7 +59,7 @@ export class ShootScene extends Phaser.Scene {
 
         this.explosions = new ExplosionFx(this);
 
-        this.base = new Base(this, { maxHp: 15, depth: 1 });
+        this.base = new Base(this, { maxHp: getBaseMaxHp(), depth: 1 });
 
         this.enemyManager = new EnemyManager(this, {
             projectiles: this.enemyShots,
