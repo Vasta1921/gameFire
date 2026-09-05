@@ -39,6 +39,7 @@ const DEFAULT = {
     equippedMods: emptyLoadout(),
     modRolls: {},
     chanceScale: 1,
+    soundEnabled: true,
 };
 
 export const SHOP_ITEMS = [
@@ -108,6 +109,7 @@ function read() {
             equippedMods: mods.equippedMods,
             modRolls: mods.modRolls,
             chanceScale: 1,
+            soundEnabled: data.soundEnabled !== false,
         };
         if (!scaled) write(parsed);
         return parsed;
@@ -133,6 +135,17 @@ function readChanceLevel(value) {
 
 export function loadProgress() {
     return read();
+}
+
+export function isSoundEnabled() {
+    return read().soundEnabled !== false;
+}
+
+export function setSoundEnabled(enabled) {
+    const data = read();
+    data.soundEnabled = Boolean(enabled);
+    write(data);
+    return data.soundEnabled;
 }
 
 export function addCoins(amount) {

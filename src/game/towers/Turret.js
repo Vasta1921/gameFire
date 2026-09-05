@@ -57,7 +57,7 @@ export class Turret {
         this.sprite.setRotation(angle + this.rotationOffset + Math.PI / 2);
     }
 
-    shoot(projectileSystem, pointer, extraSpread = 0, angleOffset = 0) {
+    aimAngle(pointer) {
         const angle = Phaser.Math.Angle.Between(
             this.sprite.x,
             this.sprite.y,
@@ -65,7 +65,11 @@ export class Turret {
             pointer.y
         );
         const jitter = Phaser.Math.FloatBetween(-this.spread, this.spread);
-        const shootAngle = angle + this.rotationOffset + angleOffset + jitter;
+        return angle + this.rotationOffset + jitter;
+    }
+
+    shoot(projectileSystem, pointer, extraSpread = 0, angleOffset = 0, baseAngle = null) {
+        const shootAngle = (baseAngle ?? this.aimAngle(pointer)) + angleOffset;
 
         const dirX = Math.cos(shootAngle);
         const dirY = Math.sin(shootAngle);
@@ -96,17 +100,18 @@ export class Turret {
         if (this.multiChance > 0 && Math.random() < Math.min(0.5, this.multiChance)) {
             pellets += 1;
         }
+        const base = this.aimAngle(pointer);
         if (pellets <= 1) {
-            this.shoot(projectileSystem, pointer, 0, 0);
+            this.shoot(projectileSystem, pointer, 0, 0, base);
             return;
         }
         if (pellets === 2) {
-            this.shoot(projectileSystem, pointer, -8, -0.035);
-            this.shoot(projectileSystem, pointer, 8, 0.035);
+            this.shoot(projectileSystem, pointer, -8, 0, base);
+            this.shoot(projectileSystem, pointer, 8, 0, base);
             return;
         }
-        this.shoot(projectileSystem, pointer, -10, -0.04);
-        this.shoot(projectileSystem, pointer, 0, 0);
-        this.shoot(projectileSystem, pointer, 10, 0.04);
+        this.shoot(projectileSystem, pointer, -10, -0.04, base);
+        this.shoot(projectileSystem, pointer, 0, 0, base);
+        this.shoot(projectileSystem, pointer, 10, 0.04, base);
     }
 }

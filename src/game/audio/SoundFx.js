@@ -1,3 +1,5 @@
+import { isSoundEnabled } from "../progress/Progress.js";
+
 /**
  * Процедурные звуки через Web Audio — без файлов.
  * Браузер разрешает звук только после жеста игрока (unlock).
@@ -5,9 +7,21 @@
 export class SoundFx {
     constructor() {
         this.ctx = null;
+        this.enabled = true;
+    }
+
+    setEnabled(enabled) {
+        this.enabled = Boolean(enabled);
+        if (!this.enabled && this.ctx && this.ctx.state === "running") {
+            this.ctx.suspend();
+        }
+        if (this.enabled && this.ctx && this.ctx.state === "suspended") {
+            this.ctx.resume();
+        }
     }
 
     unlock() {
+        if (!this.enabled) return;
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
 
@@ -21,7 +35,7 @@ export class SoundFx {
 
     shoot() {
         const ctx = this.ctx;
-        if (!ctx || ctx.state !== "running") return;
+        if (!this.enabled || !ctx || ctx.state !== "running") return;
 
         const t = ctx.currentTime;
         const osc = ctx.createOscillator();
@@ -39,7 +53,7 @@ export class SoundFx {
 
     explode(color = "red") {
         const ctx = this.ctx;
-        if (!ctx || ctx.state !== "running") return;
+        if (!this.enabled || !ctx || ctx.state !== "running") return;
 
         const duration = 0.28;
         const t = ctx.currentTime;
@@ -74,5 +88,6 @@ export function getSoundFx(game) {
         sfx = new SoundFx();
         game.registry.set("sfx", sfx);
     }
+    sfx.setEnabled(isSoundEnabled());
     return sfx;
 }

@@ -1,11 +1,12 @@
 import { createGameTextures } from "../game/utils/createGameTextures.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats } from "../game/progress/Progress.js";
+import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled } from "../game/progress/Progress.js";
 import { addFichcoinBadge } from "../game/ui/FichcoinBadge.js";
 import { addUpgradeRows } from "../game/ui/upgradeRows.js";
 import { addModifiersTab } from "../game/ui/ModifiersTab.js";
 import { addModManageTab } from "../game/ui/ModManageTab.js";
 import { addTowerStatsPanel } from "../game/ui/TowerStatsPanel.js";
+import { addSettingsTab } from "../game/ui/SettingsTab.js";
 import { MODIFIERS } from "../game/progress/Modifiers.js";
 
 /** Стартовое меню: уровни, мастерская и модификаторы. */
@@ -44,9 +45,10 @@ export class MenuScene extends Phaser.Scene {
             fontSize: "28px",
         });
 
-        this.makeTab(width / 2 - 236, 280, "Уровни", "levels", 208);
-        this.makeTab(width / 2, 280, "Мастерская", "shop", 208);
-        this.makeTab(width / 2 + 236, 280, "Модификаторы", "mods", 228);
+        this.makeTab(90, 280, "Уровни", "levels", 168);
+        this.makeTab(270, 280, "Мастерская", "shop", 168);
+        this.makeTab(450, 280, "Модификаторы", "mods", 168);
+        this.makeTab(630, 280, "Настройки", "settings", 168);
 
         this.contentRoot = this.add.container(0, 0);
         this.highlightTabs();
@@ -59,7 +61,7 @@ export class MenuScene extends Phaser.Scene {
         bg.on("pointerup", () => this.showTab(id));
 
         const label = this.add.text(x, y, title, {
-            fontSize: title.length > 10 ? "20px" : "24px",
+            fontSize: tabWidth < 180 ? (title.length > 8 ? "18px" : "20px") : (title.length > 10 ? "20px" : "24px"),
             fill: "#ffe8d6",
         }).setOrigin(0.5);
 
@@ -99,6 +101,9 @@ export class MenuScene extends Phaser.Scene {
         } else if (id === "mods") {
             if (this.modScreen === "manage") this.buildModManage();
             else this.buildMods();
+        } else if (id === "settings") {
+            this.modScreen = "loadout";
+            this.buildSettings();
         } else {
             this.modScreen = "loadout";
             this.buildLevels();
@@ -156,7 +161,22 @@ export class MenuScene extends Phaser.Scene {
         this.contentRoot.add([card, t1, t2, playBg, play]);
     }
 
+    buildSettings() {
+        const nodes = addSettingsTab(this, {
+            soundEnabled: isSoundEnabled(),
+            onToggleSound: () => {
+                const next = !isSoundEnabled();
+                setSoundEnabled(next);
+                this.sfx.setEnabled(next);
+                if (next) this.sfx.unlock();
+                this.time.delayedCall(0, () => this.showTab("settings"));
+            },
+        });
+        this.contentRoot.add(nodes);
+    }
+
     buildShop() {
+
         const { width } = this.cameras.main;
         const nodes = addUpgradeRows(this, width / 2, 360, loadProgress(), () => {
             this.sfx.unlock();
