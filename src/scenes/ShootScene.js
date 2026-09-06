@@ -15,7 +15,7 @@ import { WavePickOverlay } from "../game/ui/WavePickOverlay.js";
 import { ExplosionFx } from "../game/fx/ExplosionFx.js";
 import { SpaceBackdrop } from "../game/fx/SpaceBackdrop.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave, bumpCareerStats, finishRunRecord } from "../game/progress/Progress.js";
+import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave, bumpCareerStats, finishRunRecord, resumeIdleClock } from "../game/progress/Progress.js";
 import { STAT_SCALE } from "../game/progress/scaling.js";
 import { createRunMods, mergeCombatStats, pickThreeUpgrades } from "../game/progress/WavePicks.js";
 
@@ -465,6 +465,7 @@ export class ShootScene extends Phaser.Scene {
         this.isPaused = false;
         this.autoFire.stop();
         this.physics.resume();
+        resumeIdleClock();
         this.scene.start("MenuScene");
     }
 }

@@ -1,6 +1,13 @@
 import { CHANCE_MAX } from "./combatFormat.js";
 import { STAT_SCALE, upgradeStack, fireRateMsForLevel, damageRangeForLevel, regenPerSecForLevel, spreadRadForLevel } from "./scaling.js";
 import {
+    IDLE_RATE_MAX,
+    IDLE_CAP_MAX,
+    computeIdleGain,
+    idleRateCost,
+    idleCapCost,
+} from "./Idle.js";
+import {
     applyModifiersToStats,
     emptyLoadout,
     sanitizeLoadout,
@@ -55,6 +62,11 @@ const DEFAULT = {
         runs: 0,
         bestScore: 0,
         bestWave: 0,
+    },
+    idle: {
+        rate: 0,
+        cap: 0,
+        lastAt: 0,
     },
 };
 
@@ -159,6 +171,7 @@ function read() {
             statScale: STAT_SCALE,
             soundEnabled: data.soundEnabled !== false,
             stats: readCareerStats(data.stats),
+            idle: readIdle(data.idle),
         };
         if (!scaled || !statScaled || rollsNeedPersist(data.modRolls, modRolls)) write(parsed);
         return parsed;
@@ -198,6 +211,15 @@ function scaleStoredDamageRolls(rolls) {
         next[id] = copy;
     });
     return next;
+}
+
+function readIdle(raw) {
+    const idle = raw && typeof raw === "object" ? raw : {};
+    return {
+        rate: clampLevel(idle.rate, IDLE_RATE_MAX),
+        cap: clampLevel(idle.cap, IDLE_CAP_MAX),
+        lastAt: Math.max(0, Number(idle.lastAt) || 0),
+    };
 }
 
 function readCareerStats(raw) {
@@ -249,6 +271,66 @@ export function addCoins(amount) {
     data.coins += Math.max(0, Math.floor(amount));
     write(data);
     return data.coins;
+}
+
+export function collectIdleIncome(now = Date.now()) {
+    const data = read();
+    const idle = readIdle(data.idle);
+    const gain = computeIdleGain(idle, now);
+    if (gain.coins > 0) {
+        data.coins += gain.coins;
+        data.stats = {
+            ...data.stats,
+            coinsEarned: data.stats.coinsEarned + gain.coins,
+        };
+    }
+    data.idle = { ...idle, lastAt: now };
+    write(data);
+    return { coins: gain.coins, idle: data.idle, totalCoins: data.coins, usedMs: gain.usedMs, capMs: gain.capMs, rate: gain.rate };
+}
+
+export function resumeIdleClock(now = Date.now()) {
+    const data = read();
+    data.idle = { ...readIdle(data.idle), lastAt: now };
+    write(data);
+    return data.idle;
+}
+
+export function buyIdleUpgrade(kind) {
+    const data = read();
+    const idle = readIdle(data.idle);
+    if (kind === "rate") {
+        if (idle.rate >= IDLE_RATE_MAX) return { ok: false, reason: "max" };
+        const cost = idleRateCost(idle.rate);
+        if (data.coins < cost) return { ok: false, reason: "coins", cost };
+        data.coins -= cost;
+        idle.rate += 1;
+    } else if (kind === "cap") {
+        if (idle.cap >= IDLE_CAP_MAX) return { ok: false, reason: "max" };
+        const cost = idleCapCost(idle.cap);
+        if (data.coins < cost) return { ok: false, reason: "coins", cost };
+        data.coins -= cost;
+        idle.cap += 1;
+    } else {
+        return { ok: false, reason: "unknown" };
+    }
+    data.idle = idle;
+    write(data);
+    return { ok: true, coins: data.coins, idle };
+}
+
+export function getIdleView(now = Date.now()) {
+    const data = read();
+    const idle = readIdle(data.idle);
+    const gain = computeIdleGain(idle, now);
+    return {
+        idle,
+        wallet: data.coins,
+        pending: gain.coins,
+        usedMs: gain.usedMs,
+        capMs: gain.capMs,
+        rate: gain.rate,
+    };
 }
 
 export function getCareerStats() {

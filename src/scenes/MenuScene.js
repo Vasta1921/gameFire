@@ -1,12 +1,13 @@
 import { createGameTextures } from "../game/utils/createGameTextures.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled, addCoins, resetProgress, careerStatRows } from "../game/progress/Progress.js";
+import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled, addCoins, resetProgress, careerStatRows, collectIdleIncome } from "../game/progress/Progress.js";
 import { addFichcoinBadge } from "../game/ui/FichcoinBadge.js";
 import { addShopPanel } from "../game/ui/upgradeRows.js";
 import { addModifiersTab } from "../game/ui/ModifiersTab.js";
 import { addModManageTab } from "../game/ui/ModManageTab.js";
 import { addTowerStatsPanel, addInfoPanel } from "../game/ui/TowerStatsPanel.js";
 import { addSettingsTab } from "../game/ui/SettingsTab.js";
+import { addIdleTab } from "../game/ui/IdleTab.js";
 import { MODIFIERS } from "../game/progress/Modifiers.js";
 
 /** Стартовое меню: уровни, мастерская и модификаторы. */
@@ -26,6 +27,7 @@ export class MenuScene extends Phaser.Scene {
         this.modSelectedSlot = null;
         this.modScreen = "loadout";
         this.shopGroup = "shoot";
+        this.idlePayout = collectIdleIncome().coins;
 
         const { width, height } = this.cameras.main;
         this.add.image(width / 2, height / 2, "background").setDisplaySize(width, height);
@@ -46,10 +48,11 @@ export class MenuScene extends Phaser.Scene {
             fontSize: "28px",
         });
 
-        this.makeTab(90, 280, "Уровни", "levels", 168);
-        this.makeTab(270, 280, "Мастерская", "shop", 168);
-        this.makeTab(450, 280, "Модификаторы", "mods", 168);
-        this.makeTab(630, 280, "Настройки", "settings", 168);
+        this.makeTab(72, 280, "Уровни", "levels", 128);
+        this.makeTab(216, 280, "Мастерская", "shop", 128);
+        this.makeTab(360, 280, "Моды", "mods", 128);
+        this.makeTab(504, 280, "Заработок", "idle", 128);
+        this.makeTab(648, 280, "Настройки", "settings", 128);
 
         this.contentRoot = this.add.container(0, 0);
         this.highlightTabs();
@@ -62,7 +65,7 @@ export class MenuScene extends Phaser.Scene {
         bg.on("pointerup", () => this.showTab(id));
 
         const label = this.add.text(x, y, title, {
-            fontSize: tabWidth < 180 ? (title.length > 8 ? "18px" : "20px") : (title.length > 10 ? "20px" : "24px"),
+            fontSize: tabWidth <= 128 ? (title.length > 6 ? "16px" : "18px") : (title.length > 10 ? "20px" : "24px"),
             fill: "#ffe8d6",
         }).setOrigin(0.5);
 
@@ -102,6 +105,10 @@ export class MenuScene extends Phaser.Scene {
         } else if (id === "mods") {
             if (this.modScreen === "manage") this.buildModManage();
             else this.buildMods();
+        } else if (id === "idle") {
+            this.modScreen = "loadout";
+            this.idlePayout += collectIdleIncome().coins;
+            this.buildIdle();
         } else if (id === "settings") {
             this.modScreen = "loadout";
             this.buildSettings();
@@ -121,6 +128,7 @@ export class MenuScene extends Phaser.Scene {
             : `Старт с волны ${start}, без усилений забега`;
         this.createLevelCard(width / 2, 430, title, subtitle, () => {
             this.sfx.unlock();
+            collectIdleIncome();
             this.scene.start("ShootScene", { startWave: start });
         });
         const stats = addTowerStatsPanel(this, width / 2, 700, {
@@ -173,6 +181,18 @@ export class MenuScene extends Phaser.Scene {
         card.on("pointerout", () => card.setStrokeStyle(3, 0xff3300, 0.85));
 
         this.contentRoot.add([card, t1, t2, playBg, play]);
+    }
+
+    buildIdle() {
+        const nodes = addIdleTab(this, {
+            collected: this.idlePayout,
+            onChange: () => {
+                this.sfx.unlock();
+                this.refreshCoinLabel();
+                this.time.delayedCall(0, () => this.showTab("idle"));
+            },
+        });
+        this.contentRoot.add(nodes);
     }
 
     buildSettings() {
