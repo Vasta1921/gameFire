@@ -474,6 +474,21 @@ export function getUnlockedStartWave() {
     return read().unlockedStartWave;
 }
 
+export const SNIPER_UNLOCK_WAVES = 25;
+
+export function wavesClearedCount() {
+    const data = read();
+    return Math.max(
+        Number(data.stats?.wavesCleared) || 0,
+        Number(data.stats?.bestWave) || 0,
+        (data.unlockedStartWave || 1) - 1,
+    );
+}
+
+export function isSniperUnlocked() {
+    return wavesClearedCount() >= SNIPER_UNLOCK_WAVES;
+}
+
 /** После босса каждых 10 волн открывается следующий блок. */
 export function recordWaveCleared(wave) {
     const data = read();

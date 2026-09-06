@@ -1,5 +1,5 @@
 /** Вкладка настроек: звук и прочие переключатели. */
-export function addSettingsTab(scene, { soundEnabled, onToggleSound, onAddCoins, onResetProgress }) {
+export function addSettingsTab(scene, { soundEnabled, onToggleSound, onAddCoins, onResetProgress, onOpenSniper }) {
     const { width } = scene.cameras.main;
     const nodes = [];
     nodes.push(...makeRow(scene, width / 2, 430, {
@@ -19,6 +19,14 @@ export function addSettingsTab(scene, { soundEnabled, onToggleSound, onAddCoins,
         onClick: onAddCoins,
     }));
     nodes.push(...makeRow(scene, width / 2, 726, {
+        title: "Снайпер (отладка)",
+        hint: "Временно: вход без 25 волн",
+        label: "Открыть",
+        color: 0x22d3ee,
+        textFill: "#111111",
+        onClick: onOpenSniper,
+    }));
+    nodes.push(...makeRow(scene, width / 2, 874, {
         title: "Сброс прогресса",
         hint: "Временно: монеты, апгрейды, моды, волны",
         label: "Сбросить",

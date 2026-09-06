@@ -1,5 +1,45 @@
 import { STAT_SCALE, WAVE_DMG_GROWTH, WAVE_DMG_GROWTH_LATE, WAVE_HP_GROWTH, WAVE_HP_GROWTH_LATE, WAVE_REWARD_GROWTH, scaleByWave, waveEnemyPower } from "../progress/scaling.js";
 
+/** Отсекает отрезок по рамке экрана с запасом, чтобы цель появлялась у края кадра. */
+function clipSegmentToBounds(x0, y0, x1, y1, width, height, pad) {
+    const left = -pad;
+    const right = width + pad;
+    const top = -pad;
+    const bottom = height + pad;
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    let t0 = 0;
+    let t1 = 1;
+    const edges = [
+        [-dx, x0 - left],
+        [dx, right - x0],
+        [-dy, y0 - top],
+        [dy, bottom - y0],
+    ];
+    for (let i = 0; i < edges.length; i += 1) {
+        const p = edges[i][0];
+        const q = edges[i][1];
+        if (p === 0) {
+            if (q < 0) return null;
+            continue;
+        }
+        const r = q / p;
+        if (p < 0) {
+            if (r > t1) return null;
+            if (r > t0) t0 = r;
+        } else {
+            if (r < t0) return null;
+            if (r < t1) t1 = r;
+        }
+    }
+    return {
+        x: x0 + dx * t0,
+        y: y0 + dy * t0,
+        endX: x0 + dx * t1,
+        endY: y0 + dy * t1,
+    };
+}
+
 const WALKER = {
     id: "walker",
     key: "enemyWalker",
@@ -144,9 +184,72 @@ export class EnemyManager {
         this.bossPending = false;
         this.waitingClear = false;
         this.spawnTimer = null;
+        this.sniperRound = false;
+    }
+
+    startSniperRound(count = 10) {
+        this.sniperRound = true;
+        this.wave = 1;
+        this.paused = false;
+        this.waitingClear = true;
+        this.toSpawn = count;
+        this.bossPending = false;
+        this.sniperIndex = 0;
+        if (this.spawnTimer) {
+            this.spawnTimer.remove();
+            this.spawnTimer = null;
+        }
+        this.spawnSniperTarget();
+    }
+
+    spawnSniperTarget() {
+        if (this.toSpawn <= 0) return;
+        this.toSpawn -= 1;
+        this.sniperIndex = (this.sniperIndex || 0) + 1;
+        this.spawnEnemy(WALKER, {
+            hp: 1,
+            noFire: true,
+            coinValue: 0,
+            scoreValue: 50,
+            ...this.sniperFlyByPath(this.sniperIndex - 1),
+        });
+    }
+
+    /** Хорда через экран мимо центра: вход с края кадра, не из-за экрана. */
+    sniperFlyByPath(index) {
+        const { width, height } = this.scene.cameras.main;
+        const cx = width / 2;
+        const cy = height / 2;
+        const angle = (index / 10) * Math.PI * 2 + 0.35;
+        const radius = Math.max(width, height);
+        const side = index % 2 === 0 ? 1 : -1;
+        const offset = (70 + (index % 4) * 28) * side;
+        const px = Math.cos(angle + Math.PI / 2) * offset;
+        const py = Math.sin(angle + Math.PI / 2) * offset;
+        const farX0 = cx + Math.cos(angle) * radius + px;
+        const farY0 = cy + Math.sin(angle) * radius + py;
+        const farX1 = cx - Math.cos(angle) * radius + px;
+        const farY1 = cy - Math.sin(angle) * radius + py;
+        const clipped = clipSegmentToBounds(farX0, farY0, farX1, farY1, width, height, 36);
+        const startX = clipped?.x ?? Phaser.Math.Clamp(farX0, -36, width + 36);
+        const startY = clipped?.y ?? Phaser.Math.Clamp(farY0, -36, height + 36);
+        const endX = clipped?.endX ?? farX1;
+        const endY = clipped?.endY ?? farY1;
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const dist = Math.max(1, Math.hypot(dx, dy));
+        const speed = 170 + (index % 5) * 12;
+        return {
+            flyBy: true,
+            x: startX,
+            y: startY,
+            vx: (dx / dist) * speed,
+            vy: (dy / dist) * speed,
+        };
     }
 
     startWave(wave) {
+        this.sniperRound = false;
         this.wave = wave;
         this.paused = false;
         this.waitingClear = true;
@@ -178,28 +281,35 @@ export class EnemyManager {
     spawnEnemy(type, options = {}) {
         const isBoss = Boolean(options.boss);
         const cameraWidth = this.scene.cameras.main.width;
-        const x = Phaser.Math.Between(isBoss ? 80 : 28, cameraWidth - (isBoss ? 80 : 28));
-        const enemy = this.group.create(x, isBoss ? -70 : -20, type.key);
-        const hp = Math.round(type.hp * STAT_SCALE * waveEnemyPower(this.wave, WAVE_HP_GROWTH, WAVE_HP_GROWTH_LATE) * (isBoss ? BOSS_HP : 1));
+        const x = options.x ?? Phaser.Math.Between(isBoss ? 80 : 28, cameraWidth - (isBoss ? 80 : 28));
+        const y = options.y ?? (isBoss ? -70 : -20);
+        const enemy = this.group.create(x, y, type.key);
+        const hp = options.hp ?? Math.round(type.hp * STAT_SCALE * waveEnemyPower(this.wave, WAVE_HP_GROWTH, WAVE_HP_GROWTH_LATE) * (isBoss ? BOSS_HP : 1));
 
         enemy.enemyType = type;
         enemy.isBoss = isBoss;
+        enemy.noFire = Boolean(options.noFire);
+        enemy.flyBy = Boolean(options.flyBy);
+        enemy.flyBySeen = false;
         enemy.maxHp = hp;
         enemy.hp = hp;
-        enemy.scoreValue = scaleByWave(type.score * (isBoss ? BOSS_SCORE : 1), this.wave, WAVE_REWARD_GROWTH);
-        enemy.coinValue = scaleByWave(type.coins * (isBoss ? BOSS_REWARD : 1), this.wave, WAVE_REWARD_GROWTH);
+        enemy.scoreValue = options.scoreValue ?? scaleByWave(type.score * (isBoss ? BOSS_SCORE : 1), this.wave, WAVE_REWARD_GROWTH);
+        enemy.coinValue = options.coinValue ?? scaleByWave(type.coins * (isBoss ? BOSS_REWARD : 1), this.wave, WAVE_REWARD_GROWTH);
         enemy.nextFireAt = 0;
-        enemy.stopY = type.id === "orb"
+        enemy.stopY = options.stopY ?? (type.id === "orb"
             ? this.scene.cameras.main.centerY
-            : this.base.siegeY;
+            : this.base.siegeY);
         enemy.clearTint();
 
         const [dw, dh] = SIZES[type.id] || [32, 36];
         const sizeK = isBoss ? BOSS_SCALE : 1;
         enemy.setDisplaySize(Math.round(dw * sizeK), Math.round(dh * sizeK));
 
-        const speed = Math.round(type.speedY * Math.min(2.5, waveEnemyPower(this.wave, 1.025, 1.035)) * (isBoss ? BOSS_SPEED : 1));
-        enemy.setVelocity(0, speed);
+        const speed = options.speedY ?? Math.round(type.speedY * Math.min(2.5, waveEnemyPower(this.wave, 1.025, 1.035)) * (isBoss ? BOSS_SPEED : 1));
+        enemy.setVelocity(options.vx ?? 0, options.vy ?? speed);
+        if (enemy.flyBy) {
+            enemy.setRotation(Math.atan2(enemy.body.velocity.y, enemy.body.velocity.x) + Math.PI / 2);
+        }
         enemy.swayPhase = Math.random() * Math.PI * 2;
         enemy.nextHealAt = 0;
         this.attachAura(enemy);
@@ -235,6 +345,25 @@ export class EnemyManager {
         this.group.children.iterate((enemy) => {
             if (!enemy || !enemy.active) return;
 
+            if (enemy.flyBy) {
+                const { width, height } = this.scene.cameras.main;
+                const angle = Math.atan2(enemy.body.velocity.y, enemy.body.velocity.x);
+                enemy.setRotation(angle + Math.PI / 2);
+                const onScreen = enemy.x > -20 && enemy.x < width + 20
+                    && enemy.y > -20 && enemy.y < height + 20;
+                if (onScreen) enemy.flyBySeen = true;
+                if (
+                    enemy.flyBySeen
+                    && (enemy.x < -90 || enemy.x > width + 90
+                    || enemy.y < -90 || enemy.y > height + 90)
+                ) {
+                    this.clearAura(enemy);
+                    enemy.destroy();
+                }
+                this.updateAura(enemy, time);
+                return;
+            }
+
             if (enemy.enemyType?.id === "dart" && enemy.y < enemy.stopY) {
                 const { width } = this.scene.cameras.main;
                 const margin = enemy.isBoss ? 64 : 28;
@@ -260,7 +389,7 @@ export class EnemyManager {
                     enemy.setRotation(angle - Math.PI / 2);
                 }
 
-                if (time >= enemy.nextFireAt) {
+                if (!enemy.noFire && time >= enemy.nextFireAt) {
                     this.shootAtBase(enemy, aim, angle);
                     const delay = enemy.isBoss
                         ? Math.round(enemy.enemyType.fireDelay * BOSS_FIRE)
@@ -276,8 +405,21 @@ export class EnemyManager {
     }
 
     checkWaveClear() {
-        if (!this.waitingClear || this.toSpawn > 0) return;
+        if (!this.waitingClear) return;
         if (this.aliveCount() > 0) return;
+
+        if (this.sniperRound) {
+            if (this.toSpawn > 0) {
+                this.spawnSniperTarget();
+                return;
+            }
+            this.waitingClear = false;
+            this.paused = true;
+            this.onWaveClear("sniper");
+            return;
+        }
+
+        if (this.toSpawn > 0) return;
 
         if (this.bossPending) {
             this.bossPending = false;

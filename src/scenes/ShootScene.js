@@ -16,9 +16,27 @@ import { EnemyIntroOverlay } from "../game/ui/EnemyIntroOverlay.js";
 import { ExplosionFx } from "../game/fx/ExplosionFx.js";
 import { SpaceBackdrop } from "../game/fx/SpaceBackdrop.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave, bumpCareerStats, finishRunRecord, resumeIdleClock, hasSeenEnemyIntro, markEnemyIntroSeen } from "../game/progress/Progress.js";
+import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave, bumpCareerStats, finishRunRecord, resumeIdleClock, hasSeenEnemyIntro, markEnemyIntroSeen, isSniperUnlocked, wavesClearedCount } from "../game/progress/Progress.js";
 import { STAT_SCALE } from "../game/progress/scaling.js";
 import { createRunMods, mergeCombatStats, pickThreeUpgrades } from "../game/progress/WavePicks.js";
+
+const SNIPER_AMMO = 10;
+const SNIPER_TARGETS = 10;
+const SNIPER_REWARD_MIN = 7;
+const SNIPER_REWARD_CAP = 700;
+const SNIPER_REWARD_SHARE = {
+    7: 250 / 700,
+    8: 400 / 700,
+    9: 550 / 700,
+    10: 1,
+};
+
+function sniperRewardFor(kills) {
+    const share = SNIPER_REWARD_SHARE[kills];
+    if (!share) return 0;
+    const max = Math.min(SNIPER_REWARD_CAP, 70 * Math.max(1, wavesClearedCount()));
+    return Math.round(max * share);
+}
 
 /** Главная сцена: крепость, стена, враги и HUD. */
 export class ShootScene extends Phaser.Scene {
@@ -28,6 +46,10 @@ export class ShootScene extends Phaser.Scene {
 
     init(data) {
         this.menuStartWave = data?.startWave ?? getUnlockedStartWave();
+        this.gameMode = data?.mode === "sniper" ? "sniper" : "campaign";
+        this.sniperMode = this.gameMode === "sniper";
+        this.sniperAmmo = SNIPER_AMMO;
+        this.sniperDebug = Boolean(data?.debugSniper);
     }
 
     preload() {
@@ -35,6 +57,10 @@ export class ShootScene extends Phaser.Scene {
     }
 
     create() {
+        if (this.sniperMode && !this.sniperDebug && !isSniperUnlocked()) {
+            this.scene.start("MenuScene");
+            return;
+        }
         this.isGameOver = false;
         this.isRestarting = false;
         this.isPaused = false;
@@ -84,8 +110,21 @@ export class ShootScene extends Phaser.Scene {
             fireRateMs: 280,
             displayWidth: 90,
             displayHeight: 48,
-            turretConfigs: [
-                {
+            turretConfigs: this.sniperMode
+                ? [{
+                    offsetX: 0,
+                    offsetY: -28,
+                    key: "sniperTurret",
+                    depth: 3,
+                    spread: 8,
+                    muzzleOffset: 118,
+                    displayWidth: 28,
+                    displayHeight: 122,
+                    bulletSpeed: 1200,
+                    damageMin: STAT_SCALE,
+                    damageMax: STAT_SCALE * 3,
+                }]
+                : [{
                     offsetX: 0,
                     offsetY: -28,
                     key: "turret",
@@ -97,20 +136,25 @@ export class ShootScene extends Phaser.Scene {
                     bulletSpeed: 1000,
                     damageMin: STAT_SCALE,
                     damageMax: STAT_SCALE * 3,
-                },
-            ],
+                }],
         });
         this.applyRunStats();
 
         this.hud = new Hud(this, { onPause: () => this.togglePause() });
         this.hud.setBaseHp(this.base.hp, this.base.maxHp);
-        this.hud.setWave(this.currentWave);
-        this.maybeEnemyIntro(this.currentWave, () => {
-            this.physics.resume();
-            this.betweenWaves = false;
-            this.hud.setPauseVisible(true);
-            this.enemyManager.startWave(this.currentWave);
-        });
+        if (this.sniperMode) {
+            this.backdrop.setSpawnsPaused(true);
+            this.refreshSniperHud();
+            this.enemyManager.startSniperRound(SNIPER_TARGETS);
+        } else {
+            this.hud.setWave(this.currentWave);
+            this.maybeEnemyIntro(this.currentWave, () => {
+                this.physics.resume();
+                this.betweenWaves = false;
+                this.hud.setPauseVisible(true);
+                this.enemyManager.startWave(this.currentWave);
+            });
+        }
 
         setupBulletEnemyCollision(
             this,
@@ -147,6 +191,10 @@ export class ShootScene extends Phaser.Scene {
             this.sfx.unlock();
             if (currentlyOver?.some((obj) => obj === this.hud.pauseBtn)) return;
             if (this.isGameOver || this.betweenWaves || this.isPaused || this.enemyIntro) return;
+            if (this.sniperMode) {
+                this.shootFromTower();
+                return;
+            }
             this.autoFire.start();
         });
         this.input.on("pointerup", () => this.autoFire.stop());
@@ -163,6 +211,7 @@ export class ShootScene extends Phaser.Scene {
         this.enemyShots.update(this.cameras.main);
         this.enemyManager.update(time);
         this.tickRepair(delta);
+        this.checkSniperFail();
     }
 
     tickRepair(delta) {
@@ -185,10 +234,15 @@ export class ShootScene extends Phaser.Scene {
 
     shootFromTower() {
         if (this.isGameOver || this.betweenWaves || this.isPaused) return;
+        if (this.sniperMode && this.sniperAmmo <= 0) return;
         const pointer = this.input.activePointer;
         this.tower.shootAll(this.playerShots, pointer);
         this.sfx.shoot();
         this.runLog.shots += 1;
+        if (this.sniperMode) {
+            this.sniperAmmo -= 1;
+            this.refreshSniperHud();
+        }
     }
 
     /** Попадание игрока: урон с башни, враг падает при hp ≤ 0. */
@@ -244,8 +298,11 @@ export class ShootScene extends Phaser.Scene {
             this.sfx.explode(kind);
         }
         this.hud.addScore(enemy.scoreValue ?? 10);
-        this.grantCoins(enemy.coinValue ?? enemy.enemyType?.coins ?? 3, enemy.x, enemy.y);
+        if (!this.sniperMode) {
+            this.grantCoins(enemy.coinValue ?? enemy.enemyType?.coins ?? 3, enemy.x, enemy.y);
+        }
         this.runLog.kills += 1;
+        if (this.sniperMode) this.refreshSniperHud();
         bumpCareerStats({ kills: 1 });
         if (enemy.isBoss) {
             this.runLog.bosses += 1;
@@ -276,8 +333,20 @@ export class ShootScene extends Phaser.Scene {
 
     applyRunStats() {
         const stats = mergeCombatStats(getCombatStats(), this.runMods);
+        if (this.sniperMode) {
+            stats.pelletCount = 1;
+            stats.doubleChance = 0;
+            stats.multiChance = 0;
+            stats.pierce = 0;
+            stats.pierceChance = 0;
+            stats.explodeChance = 0;
+            stats.homing = false;
+            stats.spread = 0;
+            stats.damageMin = Math.max(stats.damageMin, 4);
+            stats.damageMax = Math.max(stats.damageMax, 4);
+        }
         this.tower.applyCombatStats(stats);
-        this.regenPerSec = stats.regenPerSec || 0;
+        this.regenPerSec = this.sniperMode ? 0 : stats.regenPerSec || 0;
         this.waveHeal = stats.waveHeal || 0;
     }
 
@@ -324,8 +393,62 @@ export class ShootScene extends Phaser.Scene {
         }
     }
 
+    refreshSniperHud() {
+        this.hud.setSniperStatus(this.sniperAmmo, this.runLog.kills, SNIPER_TARGETS);
+    }
+
+    checkSniperFail() {
+        if (!this.sniperMode || this.isGameOver || this.betweenWaves) return;
+        if (this.sniperAmmo > 0) return;
+        if (this.playerShots.group.countActive(true) > 0) return;
+        if (this.runLog.kills >= SNIPER_REWARD_MIN) {
+            this.finishSniperWin();
+            return;
+        }
+        this.endGame({
+            title: "Промах",
+            titleColor: "#ff6b4a",
+            subtitle: `${this.runLog.kills} из ${SNIPER_TARGETS} · награда с ${SNIPER_REWARD_MIN} попаданий`,
+        });
+    }
+
+    finishSniperWin() {
+        this.betweenWaves = true;
+        this.autoFire.stop();
+        this.hud.setPauseVisible(false);
+        const kills = this.runLog.kills;
+        const reward = sniperRewardFor(kills);
+        const { width, height } = this.cameras.main;
+        if (reward > 0) this.grantCoins(reward, width / 2, height * 0.42);
+        const headline = kills >= SNIPER_TARGETS ? "Все 10 в цель!" : `${kills} из ${SNIPER_TARGETS}`;
+        this.hud.announceWaveClear(headline);
+        this.explosions.fireworks();
+        this.sfx.explode("red");
+        this.time.delayedCall(180, () => this.sfx.explode("green"));
+        this.time.delayedCall(360, () => this.sfx.explode("blue"));
+        this.time.delayedCall(1700, () => {
+            if (this.isGameOver) return;
+            this.endGame({
+                title: "Снайпер",
+                titleColor: "#4ade80",
+                subtitle: `Награда ${reward} · ${kills} из ${SNIPER_TARGETS}`,
+            });
+        });
+    }
+
     handleWaveClear(wave) {
         if (this.isGameOver || this.betweenWaves) return;
+        if (this.sniperMode) {
+            if (this.runLog.kills >= SNIPER_REWARD_MIN) this.finishSniperWin();
+            else {
+                this.endGame({
+                    title: "Промах",
+                    titleColor: "#ff6b4a",
+                    subtitle: `${this.runLog.kills} из ${SNIPER_TARGETS} · награда с ${SNIPER_REWARD_MIN} попаданий`,
+                });
+            }
+            return;
+        }
 
         this.betweenWaves = true;
         this.autoFire.stop();
@@ -408,7 +531,7 @@ export class ShootScene extends Phaser.Scene {
         this.isPaused = false;
         this.hud.hidePause();
         this.physics.resume();
-        this.backdrop.setSpawnsPaused(false);
+        this.backdrop.setSpawnsPaused(this.sniperMode);
     }
 
     takeWavePick(pick) {
@@ -460,7 +583,7 @@ export class ShootScene extends Phaser.Scene {
         this.beginNextWave();
     }
 
-    endGame() {
+    endGame(options = {}) {
         if (this.isGameOver) return;
 
         this.isGameOver = true;
@@ -474,7 +597,8 @@ export class ShootScene extends Phaser.Scene {
         this.hud.showGameOver(
             () => this.tryRestart(),
             () => this.goToMenu(),
-            this.runLog
+            this.runLog,
+            options
         );
     }
 
@@ -492,7 +616,11 @@ export class ShootScene extends Phaser.Scene {
         if (!this.isGameOver || this.isRestarting) return;
         this.isRestarting = true;
         this.physics.resume();
-        this.scene.restart();
+        this.scene.restart({
+            startWave: this.menuStartWave,
+            mode: this.gameMode,
+            debugSniper: this.sniperDebug,
+        });
     }
 
     goToMenu() {

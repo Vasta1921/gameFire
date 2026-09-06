@@ -1,6 +1,6 @@
 import { createGameTextures } from "../game/utils/createGameTextures.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled, addCoins, resetProgress, careerStatRows, collectIdleIncome } from "../game/progress/Progress.js";
+import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled, addCoins, resetProgress, careerStatRows, collectIdleIncome, isSniperUnlocked, SNIPER_UNLOCK_WAVES } from "../game/progress/Progress.js";
 import { addFichcoinBadge } from "../game/ui/FichcoinBadge.js";
 import { addShopPanel } from "../game/ui/upgradeRows.js";
 import { addModifiersTab } from "../game/ui/ModifiersTab.js";
@@ -126,19 +126,28 @@ export class MenuScene extends Phaser.Scene {
         const subtitle = start === 1
             ? "10 волн · усиления · босс"
             : `Старт с волны ${start}, без усилений забега`;
-        this.createLevelCard(width / 2, 430, title, subtitle, () => {
+        this.createLevelCard(width / 2, 400, title, subtitle, () => {
             this.sfx.unlock();
             collectIdleIncome();
             this.scene.start("ShootScene", { startWave: start });
-        });
-        const stats = addTowerStatsPanel(this, width / 2, 700, {
+        }, { height: 124 });
+        const sniperOpen = isSniperUnlocked();
+        this.createLevelCard(width / 2, 540, "2. Снайпер", sniperOpen
+            ? "10 врагов · 10 пуль · награда с 7 попаданий"
+            : `Откроется после ${SNIPER_UNLOCK_WAVES} волн`, () => {
+            if (!isSniperUnlocked()) return;
+            this.sfx.unlock();
+            collectIdleIncome();
+            this.scene.start("ShootScene", { mode: "sniper" });
+        }, { height: 124, locked: !sniperOpen });
+        const stats = addTowerStatsPanel(this, width / 2, 805, {
             stats: getCombatStats(),
             compact: true,
             cols: 2,
             width: 620,
         });
         this.contentRoot.add(stats.nodes);
-        const career = addInfoPanel(this, width / 2, 1020, {
+        const career = addInfoPanel(this, width / 2, 1110, {
             title: "Статистика",
             rows: careerStatRows(),
             compact: true,
@@ -148,37 +157,44 @@ export class MenuScene extends Phaser.Scene {
         this.contentRoot.add(career.nodes);
     }
 
-    createLevelCard(x, y, title, subtitle, onPlay) {
-        const card = this.add.rectangle(x, y, 520, 160, 0x161210, 0.92);
-        card.setStrokeStyle(3, 0xff3300, 0.85);
-        card.setInteractive({ useHandCursor: true });
+    createLevelCard(x, y, title, subtitle, onPlay, options = {}) {
+        const height = options.height ?? 160;
+        const locked = Boolean(options.locked);
+        const card = this.add.rectangle(x, y, 520, height, 0x161210, locked ? 0.72 : 0.92);
+        card.setStrokeStyle(3, locked ? 0x5a4a44 : 0xff3300, locked ? 0.55 : 0.85);
+        if (!locked) card.setInteractive({ useHandCursor: true });
 
-        const t1 = this.add.text(x, y - 28, title, {
-            fontSize: "36px",
-            fill: "#ffe8d6",
+        const t1 = this.add.text(x, y - height * 0.22, title, {
+            fontSize: "32px",
+            fill: locked ? "#8a7a72" : "#ffe8d6",
             fontStyle: "bold",
         }).setOrigin(0.5);
 
-        const t2 = this.add.text(x, y + 18, subtitle, {
-            fontSize: "20px",
-            fill: "#a78a7a",
+        const t2 = this.add.text(x, y + 10, subtitle, {
+            fontSize: "18px",
+            fill: locked ? "#6b5b53" : "#a78a7a",
+            align: "center",
+            wordWrap: { width: 480 },
         }).setOrigin(0.5);
 
-        const playBg = this.add.rectangle(x, y + 58, 160, 44, 0xff6b4a, 1);
-        const play = this.add.text(x, y + 58, "Играть", {
-            fontSize: "24px",
-            fill: "#111111",
+        const playY = y + height * 0.34;
+        const playBg = this.add.rectangle(x, playY, 160, 40, locked ? 0x3f3f46 : 0xff6b4a, 1);
+        const play = this.add.text(x, playY, locked ? "Закрыто" : "Играть", {
+            fontSize: "22px",
+            fill: locked ? "#a1a1aa" : "#111111",
         }).setOrigin(0.5);
 
-        const start = () => {
-            this.sfx.unlock();
-            onPlay();
-        };
-        card.on("pointerup", start);
-        playBg.setInteractive({ useHandCursor: true });
-        playBg.on("pointerup", start);
-        card.on("pointerover", () => card.setStrokeStyle(3, 0xffcc66, 1));
-        card.on("pointerout", () => card.setStrokeStyle(3, 0xff3300, 0.85));
+        if (!locked) {
+            const start = () => {
+                this.sfx.unlock();
+                onPlay();
+            };
+            card.on("pointerup", start);
+            playBg.setInteractive({ useHandCursor: true });
+            playBg.on("pointerup", start);
+            card.on("pointerover", () => card.setStrokeStyle(3, 0xffcc66, 1));
+            card.on("pointerout", () => card.setStrokeStyle(3, 0xff3300, 0.85));
+        }
 
         this.contentRoot.add([card, t1, t2, playBg, play]);
     }
@@ -208,6 +224,11 @@ export class MenuScene extends Phaser.Scene {
             onAddCoins: () => {
                 addCoins(1000);
                 this.refreshCoinLabel();
+            },
+            onOpenSniper: () => {
+                this.sfx.unlock();
+                collectIdleIncome();
+                this.scene.start("ShootScene", { mode: "sniper", debugSniper: true });
             },
             onResetProgress: () => {
                 resetProgress();

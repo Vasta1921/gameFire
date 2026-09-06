@@ -59,9 +59,10 @@ export class Hud {
         this.pauseBtn.setVisible(visible);
     }
 
-    announceWaveClear(wave) {
+    announceWaveClear(waveOrText) {
         const { width, height } = this.scene.cameras.main;
-        const label = this.scene.add.text(width / 2, height * 0.38, `Волна ${wave} пройдена!`, {
+        const text = typeof waveOrText === "string" ? waveOrText : `Волна ${waveOrText} пройдена!`;
+        const label = this.scene.add.text(width / 2, height * 0.38, text, {
             fontSize: "48px",
             fill: "#fbbf24",
             fontStyle: "bold",
@@ -189,6 +190,10 @@ export class Hud {
         this.waveText.setText(`Волна ${wave}  (${start}–${end})`);
     }
 
+    setSniperStatus(ammo, kills, max) {
+        this.waveText.setText(`Снайпер  ·  пули ${ammo}  ·  цели ${kills}/${max}`);
+    }
+
     popup(x, y, text, color = "#fbbf24") {
         const label = this.scene.add.text(x, y, text, {
             fontSize: "22px",
@@ -211,30 +216,32 @@ export class Hud {
         this.baseText.setColor(hp <= 5 * STAT_SCALE ? "#ff6b6b" : "#ffb4a8");
     }
 
-    showGameOver(onPlayAgain, onMenu, run = {}) {
+    showGameOver(onPlayAgain, onMenu, run = {}, options = {}) {
         const { width, height } = this.scene.cameras.main;
 
         const overlay = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.62);
         overlay.setDepth(20);
         overlay.setInteractive();
 
-        const title = this.scene.add.text(width / 2, 280, "База уничтожена", {
+        const title = this.scene.add.text(width / 2, 280, options.title ?? "База уничтожена", {
             fontSize: "48px",
-            fill: "#ff6b4a",
+            fill: options.titleColor ?? "#ff6b4a",
             fontStyle: "bold",
         });
         title.setOrigin(0.5);
         title.setDepth(21);
 
-        const lines = [
-            `Счёт: ${this.score}`,
-            `Убито: ${run.kills ?? 0}`,
-            `Боссов: ${run.bosses ?? 0}`,
-            `Монет за забег: ${run.coins ?? 0}`,
-            `Волн пройдено: ${run.wavesCleared ?? 0}`,
-            `Выстрелов: ${run.shots ?? 0}`,
-            `Волна: ${this.wave}`,
-        ];
+        const lines = options.subtitle
+            ? [options.subtitle, "", `Счёт: ${this.score}`, `Попаданий: ${run.kills ?? 0}`, `Выстрелов: ${run.shots ?? 0}`, `Монет: ${run.coins ?? 0}`]
+            : [
+                `Счёт: ${this.score}`,
+                `Убито: ${run.kills ?? 0}`,
+                `Боссов: ${run.bosses ?? 0}`,
+                `Монет за забег: ${run.coins ?? 0}`,
+                `Волн пройдено: ${run.wavesCleared ?? 0}`,
+                `Выстрелов: ${run.shots ?? 0}`,
+                `Волна: ${this.wave}`,
+            ];
         const stats = this.scene.add.text(width / 2, 520, lines.join("\n"), {
             fontSize: "28px",
             fill: "#ffe8d6",

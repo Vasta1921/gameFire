@@ -6,6 +6,7 @@ export function createGameTextures(scene) {
     createBackgroundTexture(scene);
     createTowerTexture(scene);
     createTurretTexture(scene);
+    createSniperTurretTexture(scene);
     createWallTexture(scene);
     createWalkerTexture(scene);
     createOrbTexture(scene);
@@ -169,6 +170,41 @@ function createTurretTexture(scene) {
         g.fillRoundedRect(6, 156, 84, 36, 12);
         g.fillStyle(0xff3300, 0.75);
         g.fillRoundedRect(22, 168, 52, 12, 4);
+    });
+}
+
+/** Длинный снайперский ствол: узкая труба и компактное основание. */
+function createSniperTurretTexture(scene) {
+    const w = 72;
+    const h = 288;
+    createTexture(scene, "sniperTurret", w, h, (g) => {
+        g.fillStyle(0x0a0a0a, 1);
+        g.fillRoundedRect(8, 236, 56, 48, 12);
+        g.fillStyle(0x2a1c18, 1);
+        g.fillRoundedRect(14, 242, 44, 36, 10);
+        g.fillStyle(0xff3300, 0.8);
+        g.fillRoundedRect(22, 256, 28, 10, 3);
+
+        g.fillStyle(0x111111, 1);
+        g.fillRoundedRect(24, 28, 24, 220, 8);
+        g.fillStyle(0x3a2218, 1);
+        g.fillRoundedRect(28, 36, 16, 204, 6);
+        g.fillStyle(0x6b3a28, 1);
+        g.fillRect(33, 48, 6, 180);
+
+        g.fillStyle(0x1a120e, 1);
+        g.fillRoundedRect(20, 118, 32, 22, 6);
+        g.fillStyle(0xff2a00, 0.55);
+        g.fillRoundedRect(24, 122, 24, 14, 4);
+
+        g.fillStyle(0x7a1208, 1);
+        g.fillRoundedRect(18, 10, 36, 32, 8);
+        g.fillStyle(0xff2a00, 1);
+        g.fillRoundedRect(22, 0, 28, 28, 8);
+        g.fillStyle(0xff7a22, 1);
+        g.fillRoundedRect(26, 0, 20, 16, 6);
+        g.fillStyle(0xffe08a, 1);
+        g.fillRoundedRect(30, 0, 12, 8, 4);
     });
 }
 
