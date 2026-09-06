@@ -1,4 +1,5 @@
 import { CHANCE_MAX } from "./combatFormat.js";
+import { STAT_SCALE, upgradeStack, fireRateMsForLevel, damageRangeForLevel, regenPerSecForLevel, spreadRadForLevel } from "./scaling.js";
 import {
     applyModifiersToStats,
     emptyLoadout,
@@ -23,8 +24,8 @@ const STORAGE_KEY = "overlord_rising_progress";
 export const STAT_MAX = 33;
 export const CHANCE_LEVEL_MAX = 50;
 export const CHANCE_PER_LEVEL = 0.01;
-export const BASE_HP = 15;
-export const HP_PER_LEVEL = 1;
+export const BASE_HP = 15 * STAT_SCALE;
+export const HP_PER_LEVEL = STAT_SCALE;
 const WAVE_BLOCK = 10;
 
 const DEFAULT = {
@@ -35,6 +36,7 @@ const DEFAULT = {
         fireRate: 0,
         spread: 0,
         health: 0,
+        repair: 0,
         doubleShot: 0,
         multiShot: 0,
     },
@@ -42,38 +44,67 @@ const DEFAULT = {
     equippedMods: emptyLoadout(),
     modRolls: {},
     chanceScale: 1,
+    statScale: STAT_SCALE,
     soundEnabled: true,
+    stats: {
+        kills: 0,
+        bosses: 0,
+        coinsEarned: 0,
+        wavesCleared: 0,
+        shots: 0,
+        runs: 0,
+        bestScore: 0,
+        bestWave: 0,
+    },
 };
+
+export const SHOP_GROUPS = [
+    { id: "shoot", title: "Стрельба" },
+    { id: "fortress", title: "Крепость" },
+    { id: "special", title: "Особые" },
+];
 
 export const SHOP_ITEMS = [
     {
         id: "damage",
+        group: "shoot",
         title: "Урон",
-        hint: "+1 к мин. и макс. урону пули",
+        hint: "Каждый уровень чуть сильнее прошлого",
         max: STAT_MAX,
     },
     {
         id: "fireRate",
+        group: "shoot",
         title: "Скорострельность",
         hint: "Больше выстрелов в секунду",
         max: STAT_MAX,
     },
     {
         id: "spread",
+        group: "shoot",
         title: "Кучность",
-        hint: "Меньше разброс пуль",
+        hint: "100% — широкий конус, меньше % — кучнее",
         max: STAT_MAX,
     },
     {
         id: "health",
+        group: "fortress",
         title: "Здоровье",
-        hint: "+1 HP крепости за уровень",
+        hint: "+10 HP и больше с каждым уровнем",
         max: STAT_MAX,
         hpPerLevel: HP_PER_LEVEL,
         baseHp: BASE_HP,
     },
     {
+        id: "repair",
+        group: "fortress",
+        title: "Ремонт",
+        hint: "Понемногу чинит крепость во время боя",
+        max: STAT_MAX,
+    },
+    {
         id: "doubleShot",
+        group: "special",
         title: "Двойной выстрел",
         hint: "Шанс двух пуль за залп, +1% за уровень",
         max: CHANCE_LEVEL_MAX,
@@ -81,6 +112,7 @@ export const SHOP_ITEMS = [
     },
     {
         id: "multiShot",
+        group: "special",
         title: "Мультистрел",
         hint: "Шанс доп. снаряда за залп, +1% за уровень",
         max: CHANCE_LEVEL_MAX,
@@ -90,7 +122,7 @@ export const SHOP_ITEMS = [
 
 /** Цена уровня: быстро растёт, последние уровни очень дорогие. */
 export function upgradeCostForLevel(level) {
-    return Math.round(28 * Math.pow(1.24, level));
+    return Math.round(28 * Math.pow(1.28, level));
 }
 
 function read() {
@@ -106,6 +138,8 @@ function read() {
             doubleShot = Math.min(CHANCE_LEVEL_MAX, Math.round(doubleShot * 2.5));
             multiShot = Math.min(CHANCE_LEVEL_MAX, Math.round(multiShot * 2.5));
         }
+        const statScaled = data.statScale === STAT_SCALE;
+        const modRolls = statScaled ? mods.modRolls : scaleStoredDamageRolls(mods.modRolls);
         const parsed = {
             coins: Math.max(0, Number(data.coins) || 0),
             unlockedStartWave: Math.max(1, Number(data.unlockedStartWave) || 1),
@@ -114,20 +148,70 @@ function read() {
                 fireRate: clampLevel(data.upgrades?.fireRate, STAT_MAX),
                 spread: clampLevel(data.upgrades?.spread, STAT_MAX),
                 health: clampLevel(data.upgrades?.health, STAT_MAX),
+                repair: clampLevel(data.upgrades?.repair, STAT_MAX),
                 doubleShot,
                 multiShot,
             },
             ownedMods: mods.ownedMods,
             equippedMods: mods.equippedMods,
-            modRolls: mods.modRolls,
+            modRolls,
             chanceScale: 1,
+            statScale: STAT_SCALE,
             soundEnabled: data.soundEnabled !== false,
+            stats: readCareerStats(data.stats),
         };
-        if (!scaled) write(parsed);
+        if (!scaled || !statScaled || rollsNeedPersist(data.modRolls, modRolls)) write(parsed);
         return parsed;
     } catch {
         return JSON.parse(JSON.stringify(DEFAULT));
     }
+}
+
+function rollsNeedPersist(rawRolls, repaired) {
+    return Object.keys(repaired || {}).some((id) => {
+        const mod = getModifier(id);
+        const raw = rawRolls?.[id];
+        if (!mod) return false;
+        if (typeof mod.spreadDegAdd === "number" && typeof raw?.spreadDegAdd !== "number") return true;
+        if (typeof raw?.spreadDegAdd === "number" && raw.spreadDegAdd < -3) return true;
+        if (typeof raw?.spreadDegAdd === "number" && typeof mod.spreadDegAdd !== "number"
+            && !(raw?.extraKeys || []).includes("spread")) return true;
+        if (typeof mod.damageAdd === "number" && mod.damageAdd > 0
+            && (raw?.damageAdd ?? 0) > mod.damageAdd + (mod.damageVar ?? 0) + 40) return true;
+        if (typeof mod.damageAdd === "number" && mod.damageAdd < 0) {
+            const extraCap = (raw?.extraKeys || []).includes("damage") ? STAT_SCALE * 2 : 0;
+            if ((raw?.damageAdd ?? 0) > extraCap) return true;
+        }
+        return false;
+    });
+}
+
+function scaleStoredDamageRolls(rolls) {
+    const next = {};
+    Object.entries(rolls || {}).forEach(([id, roll]) => {
+        if (!roll || typeof roll !== "object") {
+            next[id] = roll;
+            return;
+        }
+        const copy = { ...roll };
+        if (typeof copy.damageAdd === "number") copy.damageAdd *= STAT_SCALE;
+        next[id] = copy;
+    });
+    return next;
+}
+
+function readCareerStats(raw) {
+    const s = raw && typeof raw === "object" ? raw : {};
+    return {
+        kills: Math.max(0, Math.floor(Number(s.kills) || 0)),
+        bosses: Math.max(0, Math.floor(Number(s.bosses) || 0)),
+        coinsEarned: Math.max(0, Math.floor(Number(s.coinsEarned) || 0)),
+        wavesCleared: Math.max(0, Math.floor(Number(s.wavesCleared) || 0)),
+        shots: Math.max(0, Math.floor(Number(s.shots) || 0)),
+        runs: Math.max(0, Math.floor(Number(s.runs) || 0)),
+        bestScore: Math.max(0, Math.floor(Number(s.bestScore) || 0)),
+        bestWave: Math.max(0, Math.floor(Number(s.bestWave) || 0)),
+    };
 }
 
 function write(data) {
@@ -165,6 +249,48 @@ export function addCoins(amount) {
     data.coins += Math.max(0, Math.floor(amount));
     write(data);
     return data.coins;
+}
+
+export function getCareerStats() {
+    return read().stats;
+}
+
+export function bumpCareerStats(delta) {
+    const data = read();
+    const stats = { ...data.stats };
+    Object.keys(delta || {}).forEach((key) => {
+        if (typeof stats[key] !== "number") return;
+        stats[key] += Math.max(0, Math.floor(Number(delta[key]) || 0));
+    });
+    data.stats = stats;
+    write(data);
+    return stats;
+}
+
+export function finishRunRecord(run) {
+    const data = read();
+    const stats = { ...data.stats };
+    stats.runs += 1;
+    stats.shots += Math.max(0, Math.floor(Number(run.shots) || 0));
+    stats.bestScore = Math.max(stats.bestScore, Math.floor(Number(run.score) || 0));
+    stats.bestWave = Math.max(stats.bestWave, Math.floor(Number(run.wave) || 0));
+    data.stats = stats;
+    write(data);
+    return stats;
+}
+
+export function careerStatRows(stats) {
+    const s = stats ?? getCareerStats();
+    return [
+        { label: "Убито", value: String(s.kills) },
+        { label: "Боссов", value: String(s.bosses) },
+        { label: "Монет заработано", value: formatCoins(s.coinsEarned) },
+        { label: "Волн пройдено", value: String(s.wavesCleared) },
+        { label: "Выстрелов", value: String(s.shots) },
+        { label: "Забегов", value: String(s.runs) },
+        { label: "Рекорд счёта", value: String(s.bestScore) },
+        { label: "Рекорд волны", value: String(s.bestWave || "—") },
+    ];
 }
 
 /** Временный чит для проверки механик. */
@@ -240,16 +366,19 @@ export function getBaseMaxHp() {
 export function getCombatStats() {
     const data = read();
     const { upgrades } = data;
-    const damage = upgrades.damage;
     const fireRate = upgrades.fireRate;
     const spread = upgrades.spread;
 
+    const dmg = damageRangeForLevel(upgrades.damage);
+    const hpStack = upgradeStack(HP_PER_LEVEL, upgrades.health || 0);
+
     const base = {
-        fireRateMs: Math.max(140, 280 - fireRate * 4),
-        damageMin: 1 + damage,
-        damageMax: 3 + damage,
-        spread: Math.max(0.04, 0.16 - spread * 0.0035),
-        maxHp: BASE_HP + (upgrades.health || 0) * HP_PER_LEVEL,
+        fireRateMs: fireRateMsForLevel(fireRate),
+        damageMin: dmg.min,
+        damageMax: dmg.max,
+        spread: spreadRadForLevel(spread),
+        maxHp: BASE_HP + hpStack,
+        regenPerSec: regenPerSecForLevel(upgrades.repair || 0),
         pelletCount: 1,
         doubleChance: Math.min(CHANCE_MAX, upgrades.doubleShot * CHANCE_PER_LEVEL),
         multiChance: Math.min(CHANCE_MAX, upgrades.multiShot * CHANCE_PER_LEVEL),

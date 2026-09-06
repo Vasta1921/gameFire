@@ -1,11 +1,11 @@
 import { createGameTextures } from "../game/utils/createGameTextures.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled, addCoins, resetProgress } from "../game/progress/Progress.js";
+import { loadProgress, getUnlockedStartWave, waveBlockRange, getCombatStats, isSoundEnabled, setSoundEnabled, addCoins, resetProgress, careerStatRows } from "../game/progress/Progress.js";
 import { addFichcoinBadge } from "../game/ui/FichcoinBadge.js";
-import { addUpgradeRows } from "../game/ui/upgradeRows.js";
+import { addShopPanel } from "../game/ui/upgradeRows.js";
 import { addModifiersTab } from "../game/ui/ModifiersTab.js";
 import { addModManageTab } from "../game/ui/ModManageTab.js";
-import { addTowerStatsPanel } from "../game/ui/TowerStatsPanel.js";
+import { addTowerStatsPanel, addInfoPanel } from "../game/ui/TowerStatsPanel.js";
 import { addSettingsTab } from "../game/ui/SettingsTab.js";
 import { MODIFIERS } from "../game/progress/Modifiers.js";
 
@@ -25,6 +25,7 @@ export class MenuScene extends Phaser.Scene {
         this.modSelectedId = MODIFIERS[0].id;
         this.modSelectedSlot = null;
         this.modScreen = "loadout";
+        this.shopGroup = "shoot";
 
         const { width, height } = this.cameras.main;
         this.add.image(width / 2, height / 2, "background").setDisplaySize(width, height);
@@ -118,12 +119,25 @@ export class MenuScene extends Phaser.Scene {
         const subtitle = start === 1
             ? "10 волн · усиления · босс"
             : `Старт с волны ${start}, без усилений забега`;
-        this.createLevelCard(width / 2, 460, title, subtitle, () => {
+        this.createLevelCard(width / 2, 430, title, subtitle, () => {
             this.sfx.unlock();
             this.scene.start("ShootScene", { startWave: start });
         });
-        const stats = addTowerStatsPanel(this, width / 2, 780, { stats: getCombatStats() });
+        const stats = addTowerStatsPanel(this, width / 2, 700, {
+            stats: getCombatStats(),
+            compact: true,
+            cols: 2,
+            width: 620,
+        });
         this.contentRoot.add(stats.nodes);
+        const career = addInfoPanel(this, width / 2, 1020, {
+            title: "Статистика",
+            rows: careerStatRows(),
+            compact: true,
+            cols: 2,
+            width: 620,
+        });
+        this.contentRoot.add(career.nodes);
     }
 
     createLevelCard(x, y, title, subtitle, onPlay) {
@@ -186,12 +200,23 @@ export class MenuScene extends Phaser.Scene {
     }
 
     buildShop() {
-
         const { width } = this.cameras.main;
-        const nodes = addUpgradeRows(this, width / 2, 360, loadProgress(), () => {
-            this.sfx.unlock();
-            this.refreshCoinLabel();
-            this.showTab("shop");
+        const nodes = addShopPanel(this, {
+            x: width / 2,
+            tabY: 348,
+            listY: 430,
+            groupId: this.shopGroup || "shoot",
+            progress: loadProgress(),
+            onBought: () => {
+                this.sfx.unlock();
+                this.refreshCoinLabel();
+                this.showTab("shop");
+            },
+            onGroupChange: (id) => {
+                this.shopGroup = id;
+                this.sfx.unlock();
+                this.showTab("shop");
+            },
         });
         this.contentRoot.add(nodes);
     }

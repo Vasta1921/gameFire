@@ -1,4 +1,5 @@
 import { loadProgress } from "../progress/Progress.js";
+import { STAT_SCALE } from "../progress/scaling.js";
 import { addFichcoinBadge } from "./FichcoinBadge.js";
 
 /** Экранный интерфейс: счёт, фичкоины, волна, здоровье базы. */
@@ -207,17 +208,17 @@ export class Hud {
 
     setBaseHp(hp, maxHp) {
         this.baseText.setText(`База: ${hp}/${maxHp}`);
-        this.baseText.setColor(hp <= 5 ? "#ff6b6b" : "#ffb4a8");
+        this.baseText.setColor(hp <= 5 * STAT_SCALE ? "#ff6b6b" : "#ffb4a8");
     }
 
-    showGameOver(onPlayAgain, onMenu) {
+    showGameOver(onPlayAgain, onMenu, run = {}) {
         const { width, height } = this.scene.cameras.main;
 
         const overlay = this.scene.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.62);
         overlay.setDepth(20);
         overlay.setInteractive();
 
-        const title = this.scene.add.text(width / 2, height / 2 - 100, "База уничтожена", {
+        const title = this.scene.add.text(width / 2, 280, "База уничтожена", {
             fontSize: "48px",
             fill: "#ff6b4a",
             fontStyle: "bold",
@@ -225,23 +226,28 @@ export class Hud {
         title.setOrigin(0.5);
         title.setDepth(21);
 
-        const scoreLine = this.scene.add.text(width / 2, height / 2 - 28, `Счёт: ${this.score}`, {
-            fontSize: "32px",
-            fill: "#ffffff",
-        });
-        scoreLine.setOrigin(0.5);
-        scoreLine.setDepth(21);
-
-        addFichcoinBadge(this.scene, width / 2 - 36, height / 2 + 18, this.coins, {
-            scale: 0.5,
+        const lines = [
+            `Счёт: ${this.score}`,
+            `Убито: ${run.kills ?? 0}`,
+            `Боссов: ${run.bosses ?? 0}`,
+            `Монет за забег: ${run.coins ?? 0}`,
+            `Волн пройдено: ${run.wavesCleared ?? 0}`,
+            `Выстрелов: ${run.shots ?? 0}`,
+            `Волна: ${this.wave}`,
+        ];
+        const stats = this.scene.add.text(width / 2, 520, lines.join("\n"), {
             fontSize: "28px",
-            depth: 21,
+            fill: "#ffe8d6",
+            align: "center",
+            lineSpacing: 8,
         });
+        stats.setOrigin(0.5);
+        stats.setDepth(21);
 
-        const button = this.scene.add.rectangle(width / 2, height / 2 + 88, 400, 72, 0xff6b4a, 1);
+        const button = this.scene.add.rectangle(width / 2, 900, 400, 72, 0xff6b4a, 1);
         button.setDepth(22);
         button.setInteractive({ useHandCursor: true });
-        this.scene.add.text(width / 2, height / 2 + 88, "Сыграть снова", {
+        this.scene.add.text(width / 2, 900, "Сыграть снова", {
             fontSize: "32px",
             fill: "#111111",
             fontStyle: "bold",
@@ -251,10 +257,10 @@ export class Hud {
         });
 
         if (onMenu) {
-            const menuBtn = this.scene.add.rectangle(width / 2, height / 2 + 175, 400, 64, 0x52525b, 1);
+            const menuBtn = this.scene.add.rectangle(width / 2, 990, 400, 64, 0x52525b, 1);
             menuBtn.setDepth(22);
             menuBtn.setInteractive({ useHandCursor: true });
-            this.scene.add.text(width / 2, height / 2 + 175, "В меню", {
+            this.scene.add.text(width / 2, 990, "В меню", {
                 fontSize: "28px",
                 fill: "#ffe8d6",
                 fontStyle: "bold",

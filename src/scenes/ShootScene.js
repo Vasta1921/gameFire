@@ -15,7 +15,8 @@ import { WavePickOverlay } from "../game/ui/WavePickOverlay.js";
 import { ExplosionFx } from "../game/fx/ExplosionFx.js";
 import { SpaceBackdrop } from "../game/fx/SpaceBackdrop.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave } from "../game/progress/Progress.js";
+import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave, bumpCareerStats, finishRunRecord } from "../game/progress/Progress.js";
+import { STAT_SCALE } from "../game/progress/scaling.js";
 import { createRunMods, mergeCombatStats, pickThreeUpgrades } from "../game/progress/WavePicks.js";
 
 /** Главная сцена: крепость, стена, враги и HUD. */
@@ -41,6 +42,14 @@ export class ShootScene extends Phaser.Scene {
         this.wavePick = null;
         this.currentWave = this.menuStartWave || 1;
         this.runMods = createRunMods();
+        this.runFinished = false;
+        this.runLog = {
+            kills: 0,
+            bosses: 0,
+            coins: 0,
+            wavesCleared: 0,
+            shots: 0,
+        };
         this.sfx = getSoundFx(this.game);
         createGameTextures(this);
 
@@ -84,8 +93,8 @@ export class ShootScene extends Phaser.Scene {
                     displayWidth: 36,
                     displayHeight: 52,
                     bulletSpeed: 1000,
-                    damageMin: 1,
-                    damageMax: 3,
+                    damageMin: STAT_SCALE,
+                    damageMax: STAT_SCALE * 3,
                 },
             ],
         });
@@ -146,6 +155,25 @@ export class ShootScene extends Phaser.Scene {
         this.playerShots.update(this.cameras.main, this.enemyManager.group);
         this.enemyShots.update(this.cameras.main);
         this.enemyManager.update(time);
+        this.tickRepair(delta);
+    }
+
+    tickRepair(delta) {
+        const rate = this.regenPerSec || 0;
+        if (rate <= 0 || !this.base || this.base.hp <= 0) return;
+        if (this.base.hp >= this.base.maxHp) {
+            this.regenAcc = 0;
+            return;
+        }
+        this.regenAcc = (this.regenAcc || 0) + rate * (delta / 1000);
+        if (this.regenAcc < 1) return;
+        const healed = Math.floor(this.regenAcc);
+        this.regenAcc -= healed;
+        const before = this.base.hp;
+        this.base.repair(healed);
+        if (this.base.hp !== before) {
+            this.hud.setBaseHp(this.base.hp, this.base.maxHp);
+        }
     }
 
     shootFromTower() {
@@ -153,9 +181,10 @@ export class ShootScene extends Phaser.Scene {
         const pointer = this.input.activePointer;
         this.tower.shootAll(this.playerShots, pointer);
         this.sfx.shoot();
+        this.runLog.shots += 1;
     }
 
-    /** Попадание игрока: пуля 1–3 урона, враг падает при hp ≤ 0. */
+    /** Попадание игрока: урон с башни, враг падает при hp ≤ 0. */
     handleBulletEnemyHit(bullet, enemy) {
         if (this.isGameOver || this.betweenWaves || !bullet.active || !enemy.active) return;
         if (bullet.team === "enemy") return;
@@ -175,7 +204,7 @@ export class ShootScene extends Phaser.Scene {
         if (bullet.explodes && !bullet.didSplash) {
             bullet.didSplash = true;
             this.explosions.boom(hitX, hitY);
-            this.splashNearby(enemy, hitX, hitY, 1);
+            this.splashNearby(enemy, hitX, hitY, Math.max(1, Math.round(damage * 0.4)));
         }
 
         if ((bullet.pierce ?? 0) > 0) {
@@ -206,7 +235,13 @@ export class ShootScene extends Phaser.Scene {
             this.sfx.explode(kind);
         }
         this.hud.addScore(enemy.scoreValue ?? 10);
-        this.grantCoins(enemy.enemyType?.coins ?? 3, enemy.x, enemy.y);
+        this.grantCoins(enemy.coinValue ?? enemy.enemyType?.coins ?? 3, enemy.x, enemy.y);
+        this.runLog.kills += 1;
+        bumpCareerStats({ kills: 1 });
+        if (enemy.enemyType?.id === "boss") {
+            this.runLog.bosses += 1;
+            bumpCareerStats({ bosses: 1 });
+        }
         enemy.destroy();
     }
 
@@ -230,7 +265,9 @@ export class ShootScene extends Phaser.Scene {
     }
 
     applyRunStats() {
-        this.tower.applyCombatStats(mergeCombatStats(getCombatStats(), this.runMods));
+        const stats = mergeCombatStats(getCombatStats(), this.runMods);
+        this.tower.applyCombatStats(stats);
+        this.regenPerSec = stats.regenPerSec || 0;
     }
 
     /** Особый приз: попадание в метеорит. */
@@ -249,7 +286,10 @@ export class ShootScene extends Phaser.Scene {
     }
 
     grantCoins(amount, x, y) {
-        const total = addCoins(amount);
+        const gained = Math.max(0, Math.floor(amount));
+        const total = addCoins(gained);
+        this.runLog.coins += gained;
+        if (gained > 0) bumpCareerStats({ coinsEarned: gained });
         this.hud.setCoins(total);
         this.hud.flyCoins(x, y, amount);
     }
@@ -281,6 +321,8 @@ export class ShootScene extends Phaser.Scene {
         this.nextWave = wave + 1;
         this.hud.setPauseVisible(false);
         recordWaveCleared(wave);
+        this.runLog.wavesCleared += 1;
+        bumpCareerStats({ wavesCleared: 1 });
         if (this.isPaused) {
             this.hud.hidePause();
             this.isPaused = false;
@@ -391,10 +433,22 @@ export class ShootScene extends Phaser.Scene {
         this.backdrop.setSpawnsPaused(true);
         this.hud.setPauseVisible(false);
         this.hud.hidePause();
+        this.finishRunOnce();
         this.hud.showGameOver(
             () => this.tryRestart(),
-            () => this.goToMenu()
+            () => this.goToMenu(),
+            this.runLog
         );
+    }
+
+    finishRunOnce() {
+        if (this.runFinished) return;
+        this.runFinished = true;
+        finishRunRecord({
+            score: this.hud.score,
+            wave: this.currentWave,
+            shots: this.runLog.shots,
+        });
     }
 
     tryRestart() {
@@ -407,6 +461,7 @@ export class ShootScene extends Phaser.Scene {
     goToMenu() {
         if (this.isRestarting) return;
         this.isRestarting = true;
+        this.finishRunOnce();
         this.isPaused = false;
         this.autoFire.stop();
         this.physics.resume();

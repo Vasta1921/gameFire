@@ -1,6 +1,6 @@
 import { loadProgress } from "../progress/Progress.js";
 import { addFichcoinBadge } from "./FichcoinBadge.js";
-import { addUpgradeRows } from "./upgradeRows.js";
+import { addShopPanel } from "./upgradeRows.js";
 
 /** Мастерская поверх боя — без отдельной Phaser-сцены, чтобы не зависать. */
 export class WorkshopOverlay {
@@ -43,6 +43,7 @@ export class WorkshopOverlay {
         });
         this.root.add([this.coinBadge.icon, this.coinBadge.text]);
 
+        this.shopGroup = "shoot";
         this.listRoot = scene.add.container(0, 0);
         this.root.add(this.listRoot);
         this.rebuildList();
@@ -79,13 +80,18 @@ export class WorkshopOverlay {
     rebuildList() {
         this.listRoot.removeAll(true);
         this.coinBadge.setAmount(loadProgress().coins);
-        const nodes = addUpgradeRows(
-            this.scene,
-            this.scene.cameras.main.width / 2,
-            232,
-            loadProgress(),
-            () => this.rebuildList()
-        );
+        const nodes = addShopPanel(this.scene, {
+            x: this.scene.cameras.main.width / 2,
+            tabY: 218,
+            listY: 300,
+            groupId: this.shopGroup,
+            progress: loadProgress(),
+            onBought: () => this.rebuildList(),
+            onGroupChange: (id) => {
+                this.shopGroup = id;
+                this.rebuildList();
+            },
+        });
         this.listRoot.add(nodes);
     }
 }

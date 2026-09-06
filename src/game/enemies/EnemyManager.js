@@ -1,10 +1,12 @@
+import { STAT_SCALE, WAVE_DMG_GROWTH, WAVE_HP_GROWTH, WAVE_REWARD_GROWTH, scaleByWave, wavePower } from "../progress/scaling.js";
+
 const WALKER = {
     id: "walker",
     key: "enemyWalker",
     weight: 3,
     hp: 5,
     speedY: 95,
-    fireDelay: 850,
+    fireDelay: 1050,
     damageMin: 1,
     damageMax: 2,
     bulletSpeed: 320,
@@ -19,7 +21,7 @@ const ORB = {
     weight: 1,
     hp: 2,
     speedY: 70,
-    fireDelay: 1100,
+    fireDelay: 1350,
     damageMin: 1,
     damageMax: 1,
     bulletSpeed: 280,
@@ -33,7 +35,7 @@ const BOSS = {
     key: "enemyBoss",
     hp: 48,
     speedY: 52,
-    fireDelay: 520,
+    fireDelay: 680,
     damageMin: 2,
     damageMax: 3,
     bulletSpeed: 360,
@@ -65,8 +67,7 @@ export class EnemyManager {
         this.waitingClear = true;
         this.toSpawn = Math.min(48, 6 + (wave - 1) * 2);
         this.bossPending = wave % 10 === 0;
-        this.hpBonus = (wave - 1) + Math.floor((wave - 1) / 10) * 6;
-        const delay = Math.max(340, 920 - (wave - 1) * 22);
+        const delay = Math.max(280, Math.round(920 * Math.pow(0.97, wave - 1)));
 
         if (this.spawnTimer) {
             this.spawnTimer.remove();
@@ -93,12 +94,14 @@ export class EnemyManager {
         const cameraWidth = this.scene.cameras.main.width;
         const x = Phaser.Math.Between(28, cameraWidth - 28);
         const enemy = this.group.create(x, -20, type.key);
-        const hp = type.hp + this.hpBonus + (type.id === "boss" ? this.hpBonus * 2 : 0);
+        const hpMult = type.id === "boss" ? 1.55 : 1;
+        const hp = Math.round(type.hp * STAT_SCALE * wavePower(this.wave, WAVE_HP_GROWTH) * hpMult);
 
         enemy.enemyType = type;
         enemy.maxHp = hp;
         enemy.hp = hp;
-        enemy.scoreValue = type.score;
+        enemy.scoreValue = scaleByWave(type.score, this.wave, WAVE_REWARD_GROWTH);
+        enemy.coinValue = scaleByWave(type.coins, this.wave, WAVE_REWARD_GROWTH);
         enemy.nextFireAt = 0;
         enemy.stopY = type.id === "orb"
             ? this.scene.cameras.main.centerY
@@ -113,7 +116,7 @@ export class EnemyManager {
             enemy.setDisplaySize(32, 36);
         }
 
-        const speed = type.speedY + (this.wave - 1) * 4;
+        const speed = Math.round(type.speedY * Math.min(2.5, wavePower(this.wave, 1.025)));
         enemy.setVelocity(0, speed);
         return enemy;
     }
@@ -195,8 +198,8 @@ export class EnemyManager {
             width: type.id === "boss" ? 12 : 8,
             height: type.id === "boss" ? 22 : 16,
             depth: 2,
-            damageMin: type.damageMin,
-            damageMax: type.damageMax,
+            damageMin: scaleByWave(type.damageMin, this.wave, WAVE_DMG_GROWTH) * STAT_SCALE,
+            damageMax: scaleByWave(type.damageMax, this.wave, WAVE_DMG_GROWTH) * STAT_SCALE,
         });
     }
 

@@ -1,4 +1,9 @@
 import { CHANCE_MAX } from "./combatFormat.js";
+import { STAT_SCALE, WAVE_HEAL_GROWTH, scaleByWave } from "./scaling.js";
+
+function waveOf(scene) {
+    return scene?.currentWave ?? scene?.enemyManager?.wave ?? 1;
+}
 
 export function createRunMods() {
     return {
@@ -15,18 +20,18 @@ export const WAVE_PICKS = [
     {
         id: "heal",
         title: "Ремонт",
-        hint: "+6 HP крепости",
+        hint: "+HP крепости, сильнее на поздних волнах",
         apply(_run, scene) {
-            scene.base.heal(6);
+            scene.base.heal(scaleByWave(6, waveOf(scene), WAVE_HEAL_GROWTH) * STAT_SCALE);
             scene.hud.setBaseHp(scene.base.hp, scene.base.maxHp);
         },
     },
     {
         id: "damage",
         title: "Урон",
-        hint: "+1 к урону",
-        apply(run) {
-            run.damage += 1;
+        hint: "+урон, сильнее на поздних волнах",
+        apply(run, scene) {
+            run.damage += scaleByWave(1, waveOf(scene), WAVE_HEAL_GROWTH) * STAT_SCALE;
         },
     },
     {
@@ -92,5 +97,6 @@ export function mergeCombatStats(shopStats, run) {
         pierce: (shopStats.pierce || 0) + run.pierce,
         explodeChance: Math.min(0.8, (shopStats.explodeChance || 0) + run.explodeChance),
         homing: Boolean(shopStats.homing),
+        regenPerSec: shopStats.regenPerSec || 0,
     };
 }

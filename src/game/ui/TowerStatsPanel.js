@@ -3,9 +3,17 @@ import { combatStatRows } from "../progress/combatFormat.js";
 
 /** Панель текущих параметров башни (мастерская + модули). */
 export function addTowerStatsPanel(scene, x, y, options = {}) {
-    const compact = Boolean(options.compact);
     const stats = options.stats ?? getCombatStats();
-    const rows = combatStatRows(stats);
+    return addInfoPanel(scene, x, y, {
+        ...options,
+        title: options.title ?? "Башня",
+        rows: options.rows ?? combatStatRows(stats),
+    });
+}
+
+export function addInfoPanel(scene, x, y, options = {}) {
+    const compact = Boolean(options.compact);
+    const rows = options.rows ?? [];
     const cols = options.cols ?? (compact ? 2 : 1);
     const width = options.width ?? (compact ? 640 : 520);
     const rowH = compact ? 36 : 40;
@@ -19,7 +27,7 @@ export function addTowerStatsPanel(scene, x, y, options = {}) {
     box.setStrokeStyle(2, 0xff3300, 0.75);
     nodes.push(box);
 
-    const title = scene.add.text(x, y - height / 2 + pad, "Башня", {
+    const title = scene.add.text(x, y - height / 2 + pad, options.title ?? "Башня", {
         fontSize: compact ? "22px" : "26px",
         fill: "#ffe8d6",
         fontStyle: "bold",

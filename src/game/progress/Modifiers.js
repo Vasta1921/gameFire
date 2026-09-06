@@ -1,4 +1,7 @@
-import { CHANCE_MAX, formatSpsDelta, formatSpreadDeltaDeg } from "./combatFormat.js";
+import { CHANCE_MAX, formatSpsDelta, formatSpreadDeltaPct } from "./combatFormat.js";
+import { STAT_SCALE, MIN_SPREAD_RAD } from "./scaling.js";
+
+const SPREAD_TIGHTEN_CAP = -3;
 
 export const RARITY = {
     common: "common",
@@ -48,38 +51,32 @@ export const MODIFIERS = [
     {
         id: "stabilizer",
         title: "Стабилизатор",
-        hint: "Сужаем конус огня, но пули бьют слабее.",
+        hint: "Немного сужает конус огня.",
         rarity: RARITY.common,
         cost: 420,
         color: 0x38bdf8,
-        spreadDegAdd: -5,
-        spreadDegVar: 2,
-        damageAdd: -2,
-        damageVar: 1,
+        spreadDegAdd: -2,
+        spreadDegVar: 1,
     },
     {
         id: "overclock",
         title: "Разгон",
-        hint: "Стреляет чаще, но разброс растёт.",
+        hint: "Чуть чаще стреляет.",
         rarity: RARITY.common,
         cost: 640,
         color: 0xfb7185,
-        fireRateMsAdd: -55,
-        fireRateMsVar: 22,
-        spreadDegAdd: 5,
-        spreadDegVar: 2,
+        fireRateMsAdd: -28,
+        fireRateMsVar: 8,
     },
     {
         id: "hollow",
         title: "Бронебой",
-        hint: "Больше урона ценой широкого конуса.",
+        hint: "Немного больше урона.",
         rarity: RARITY.common,
         cost: 720,
         color: 0x4ade80,
-        damageAdd: 3,
-        damageVar: 1,
-        spreadDegAdd: 4,
-        spreadDegVar: 2,
+        damageAdd: STAT_SCALE,
+        damageVar: 5,
     },
     {
         id: "heavyBarrel",
@@ -88,8 +85,8 @@ export const MODIFIERS = [
         rarity: RARITY.rare,
         cost: 1480,
         color: 0xa78bfa,
-        spreadDegAdd: -4,
-        spreadDegVar: 2,
+        spreadDegAdd: -2,
+        spreadDegVar: 1,
         fireRateMsAdd: 75,
         fireRateMsVar: 25,
     },
@@ -102,8 +99,8 @@ export const MODIFIERS = [
         color: 0xf472b6,
         fireRateMsAdd: -70,
         fireRateMsVar: 24,
-        damageAdd: -2,
-        damageVar: 1,
+        damageAdd: -2 * STAT_SCALE,
+        damageVar: 1 * STAT_SCALE,
     },
     {
         id: "seeker",
@@ -115,8 +112,8 @@ export const MODIFIERS = [
         homing: true,
         fireRateMsAdd: 110,
         fireRateMsVar: 30,
-        damageAdd: -2,
-        damageVar: 1,
+        damageAdd: -2 * STAT_SCALE,
+        damageVar: 1 * STAT_SCALE,
     },
     {
         id: "triad",
@@ -126,8 +123,8 @@ export const MODIFIERS = [
         cost: 5600,
         color: 0x22d3ee,
         tripleShot: true,
-        spreadDegAdd: -6,
-        spreadDegVar: 2,
+        spreadDegAdd: -1,
+        spreadDegVar: 1,
         fireRateMsAdd: 140,
         fireRateMsVar: 28,
     },
@@ -201,7 +198,42 @@ export function rollModifierStats(mod) {
 export function resolveModifierRoll(id, rolls) {
     const mod = getModifier(id);
     if (!mod) return null;
-    return { ...snapshotModifierBase(mod), ...(rolls?.[id] ?? {}) };
+    const saved = rolls?.[id];
+    const merged = saved && typeof saved === "object"
+        ? { ...snapshotModifierBase(mod), ...saved }
+        : snapshotModifierBase(mod);
+    return repairModifierRoll(mod, merged);
+}
+
+function repairModifierRoll(mod, roll) {
+    const next = { ...roll };
+    if (typeof next.spreadDegAdd === "number" && typeof mod.spreadDegAdd !== "number") {
+        if (!extraKeysOf(next).includes("spread")) {
+            delete next.spreadDegAdd;
+        }
+    } else if (typeof next.spreadDegAdd === "number" && next.spreadDegAdd < 0) {
+        const extra = extraKeysOf(next).includes("spread") ? 1 : 0;
+        const fromCatalog = (mod.spreadDegAdd ?? 0) < 0
+            ? (mod.spreadDegAdd ?? 0) - Math.min(2, next.tuneLevel || 0) - extra
+            : next.spreadDegAdd;
+        if (next.spreadDegAdd < fromCatalog || next.spreadDegAdd < SPREAD_TIGHTEN_CAP) {
+            next.spreadDegAdd = Math.max(SPREAD_TIGHTEN_CAP, fromCatalog);
+        }
+        next.spreadDegAdd = Math.max(SPREAD_TIGHTEN_CAP, next.spreadDegAdd);
+    }
+    if (typeof mod.damageAdd === "number" && mod.damageAdd > 0 && typeof next.damageAdd === "number") {
+        const extra = extraKeysOf(next).includes("damage") ? STAT_SCALE * 2 : 0;
+        const cap = mod.damageAdd + (mod.damageVar ?? 0) + (next.tuneLevel || 0) * STAT_SCALE + extra;
+        if (next.damageAdd > cap) next.damageAdd = cap;
+    }
+    if (typeof mod.damageAdd === "number" && mod.damageAdd < 0 && typeof next.damageAdd === "number") {
+        const extraCap = extraKeysOf(next).includes("damage") ? STAT_SCALE * 2 : 0;
+        if (next.damageAdd > extraCap) {
+            const softened = mod.damageAdd + Math.min(next.tuneLevel || 0, 2) * STAT_SCALE;
+            next.damageAdd = Math.min(extraCap, Math.min(0, softened) + extraCap);
+        }
+    }
+    return next;
 }
 
 export function sanitizeLoadout(owned, equipped, rolls) {
@@ -235,9 +267,10 @@ export function sanitizeLoadout(owned, equipped, rolls) {
         const mod = getModifier(id);
         if (!mod) return;
         const saved = rawRolls[id];
-        modRolls[id] = saved && typeof saved === "object"
+        const merged = saved && typeof saved === "object"
             ? { ...snapshotModifierBase(mod), ...saved }
             : snapshotModifierBase(mod);
+        modRolls[id] = repairModifierRoll(mod, merged);
     });
 
     return {
@@ -257,7 +290,7 @@ export function applyModifiersToStats(stats, equippedIds, rolls) {
         const rolled = resolveModifierRoll(id, rolls);
         if (!rolled) return;
         if (typeof rolled.spreadDegAdd === "number") {
-            next.spread = Math.max(0.02, next.spread + rolled.spreadDegAdd * Math.PI / 180);
+            next.spread = Math.max(MIN_SPREAD_RAD, next.spread + rolled.spreadDegAdd * Math.PI / 180);
         }
         if (typeof rolled.fireRateMsAdd === "number") {
             next.fireRateMs += rolled.fireRateMsAdd;
@@ -289,11 +322,12 @@ export function applyModifiersToStats(stats, equippedIds, rolls) {
 export function modifierStatLines(mod, roll) {
     const preview = !roll;
     const lines = [];
+    const shown = preview ? null : { ...snapshotModifierBase(mod), ...roll };
 
     if (preview) {
         if (typeof mod.spreadDegAdd === "number") {
             const v = mod.spreadDegVar ?? 2;
-            lines.push(`разброс ${formatSpreadDeltaDeg(mod.spreadDegAdd - v)}…${formatSpreadDeltaDeg(mod.spreadDegAdd + v)}`);
+            lines.push(`разброс ${formatSpreadDeltaPct(mod.spreadDegAdd - v)}…${formatSpreadDeltaPct(mod.spreadDegAdd + v)}`);
         }
         if (typeof mod.fireRateMsAdd === "number") {
             const v = mod.fireRateMsVar ?? 20;
@@ -304,14 +338,14 @@ export function modifierStatLines(mod, roll) {
             lines.push(`урон ${fmtSigned(mod.damageAdd - v)}…${fmtSigned(mod.damageAdd + v)}`);
         }
     } else {
-        if (typeof roll.spreadDegAdd === "number") {
-            lines.push(`разброс ${formatSpreadDeltaDeg(roll.spreadDegAdd)}`);
+        if (typeof shown.spreadDegAdd === "number") {
+            lines.push(`разброс ${formatSpreadDeltaPct(shown.spreadDegAdd)}`);
         }
-        if (typeof roll.fireRateMsAdd === "number") {
-            lines.push(formatSpsDelta(roll.fireRateMsAdd));
+        if (typeof shown.fireRateMsAdd === "number") {
+            lines.push(formatSpsDelta(shown.fireRateMsAdd));
         }
-        if (typeof roll.damageAdd === "number") {
-            lines.push(`${fmtSigned(roll.damageAdd)} урон`);
+        if (typeof shown.damageAdd === "number") {
+            lines.push(`${fmtSigned(shown.damageAdd)} урон`);
         }
     }
     if (mod.homing || roll?.homing) lines.push("Самонаводящиеся снаряды");
@@ -378,8 +412,23 @@ export function sellRefund(mod, roll) {
 export function applyTuneToRoll(mod, roll) {
     const next = { ...roll };
     next.tuneLevel = (next.tuneLevel || 0) + 1;
-    if (typeof next.damageAdd === "number") next.damageAdd += 1;
-    if (typeof next.spreadDegAdd === "number") next.spreadDegAdd -= 1;
+    if (typeof next.damageAdd === "number") {
+        if ((mod.damageAdd ?? 0) < 0) {
+            next.damageAdd += STAT_SCALE;
+            if (!extraKeysOf(next).includes("damage")) {
+                next.damageAdd = Math.min(0, next.damageAdd);
+            }
+        } else {
+            next.damageAdd += STAT_SCALE;
+        }
+    }
+    if (typeof next.spreadDegAdd === "number") {
+        if (next.spreadDegAdd <= 0) {
+            next.spreadDegAdd = Math.max(SPREAD_TIGHTEN_CAP, next.spreadDegAdd - 1);
+        } else {
+            next.spreadDegAdd = Math.max(0, next.spreadDegAdd - 1);
+        }
+    }
     if (typeof next.fireRateMsAdd === "number") next.fireRateMsAdd -= 12;
     if (typeof next.doubleChanceAdd === "number") {
         next.doubleChanceAdd = Math.min(0.45, next.doubleChanceAdd + 0.03);
@@ -401,8 +450,10 @@ export function applyExtraTrait(mod, roll, traitId) {
     if (next.extraKeys.includes(traitId)) return null;
     next.extraKeys = [...next.extraKeys, traitId];
 
-    if (traitId === "damage") next.damageAdd = (next.damageAdd || 0) + 1 + Math.floor(Math.random() * 2);
-    if (traitId === "spread") next.spreadDegAdd = (next.spreadDegAdd || 0) - (2 + Math.floor(Math.random() * 2));
+    if (traitId === "damage") next.damageAdd = (next.damageAdd || 0) + STAT_SCALE + Math.floor(Math.random() * 2) * STAT_SCALE;
+    if (traitId === "spread") {
+        next.spreadDegAdd = Math.max(SPREAD_TIGHTEN_CAP, (next.spreadDegAdd || 0) - 1);
+    }
     if (traitId === "fire") next.fireRateMsAdd = (next.fireRateMsAdd || 0) - (22 + Math.floor(Math.random() * 18));
     if (traitId === "double") next.doubleChanceAdd = (next.doubleChanceAdd || 0) + 0.07 + Math.floor(Math.random() * 4) * 0.01;
     if (traitId === "multi") next.multiChanceAdd = (next.multiChanceAdd || 0) + 0.05 + Math.floor(Math.random() * 4) * 0.01;

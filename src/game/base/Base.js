@@ -1,10 +1,12 @@
+import { STAT_SCALE } from "../progress/scaling.js";
+
 /** Стена-крепость внизу экрана: в неё стреляют враги. */
 export class Base {
     constructor(scene, options = {}) {
         this.scene = scene;
 
         const {
-            maxHp = 15,
+            maxHp = 15 * STAT_SCALE,
             depth = 1,
         } = options;
 
@@ -48,11 +50,18 @@ export class Base {
     heal(amount) {
         if (this.hp <= 0) return 0;
         if (this.hp >= this.maxHp) {
-            this.maxHp += 2;
+            this.maxHp += 2 * STAT_SCALE;
             this.hp = this.maxHp;
             return this.hp;
         }
         this.hp = Math.min(this.maxHp, this.hp + Math.max(0, Math.floor(amount)));
+        return this.hp;
+    }
+
+    /** Восстанавливает HP, не поднимая максимум. */
+    repair(amount) {
+        if (this.hp <= 0 || this.hp >= this.maxHp) return this.hp;
+        this.hp = Math.min(this.maxHp, this.hp + Math.max(0, amount));
         return this.hp;
     }
 
