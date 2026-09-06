@@ -34,22 +34,59 @@ export function formatChance(value) {
     return `${Math.round((value || 0) * 100)}%`;
 }
 
-export function combatStatRows(stats) {
-    return [
-        { label: "Урон", value: `${stats.damageMin}–${stats.damageMax}` },
-        { label: "Выстрелов/с", value: formatShotsPerSec(stats.fireRateMs) },
-        { label: "Разброс", value: formatSpreadPct(stats.spread) },
-        { label: "Здоровье", value: String(stats.maxHp ?? 15) },
-        { label: "Ремонт", value: `${(stats.regenPerSec || 0).toFixed(1)} HP/с` },
-        { label: "Двойной выстрел", value: formatChance(stats.doubleChance) },
-        { label: "Мультистрел", value: formatChance(stats.multiChance) },
-        { label: "Тройной залп", value: (stats.pelletCount || 1) >= 3 ? "да" : "нет" },
-        { label: "Всегда двойной", value: stats.noCrit || (stats.pelletCount || 1) === 2 ? "да" : "нет" },
-        { label: "Наведение", value: stats.homing ? "да" : "нет" },
-        { label: "Взрывной выстрел", value: formatChance(stats.explodeChance) },
-        { label: "Пробитие", value: formatChance(stats.pierceChance) },
-        { label: "Крит", value: stats.noCrit ? "выкл" : `${formatChance(stats.critChance)} ×${(stats.critMult || 1.5).toFixed(1)}` },
-        { label: "Прямой выстрел", value: formatChance(stats.straightChance) },
-        { label: "После волны", value: `+${stats.waveHeal || 0} HP` },
+const FILL_NEUTRAL = "#ffe8d6";
+const FILL_UP = "#4ade80";
+const FILL_DOWN = "#f87171";
+
+export function combatStatRows(stats, compareFrom) {
+    const rows = [
+        { key: "damage", label: "Урон", value: `${stats.damageMin}–${stats.damageMax}` },
+        { key: "fire", label: "Выстрелов/с", value: formatShotsPerSec(stats.fireRateMs) },
+        { key: "spread", label: "Разброс", value: formatSpreadPct(stats.spread) },
+        { key: "hp", label: "Здоровье", value: String(stats.maxHp ?? 15) },
+        { key: "regen", label: "Ремонт", value: `${(stats.regenPerSec || 0).toFixed(1)} HP/с` },
+        { key: "double", label: "Двойной выстрел", value: formatChance(stats.doubleChance) },
+        { key: "multi", label: "Мультистрел", value: formatChance(stats.multiChance) },
+        { key: "triple", label: "Тройной залп", value: (stats.pelletCount || 1) >= 3 ? "да" : "нет" },
+        { key: "twin", label: "Всегда двойной", value: stats.noCrit || (stats.pelletCount || 1) === 2 ? "да" : "нет" },
+        { key: "homing", label: "Наведение", value: stats.homing ? "да" : "нет" },
+        { key: "explode", label: "Взрывной выстрел", value: formatChance(stats.explodeChance) },
+        { key: "pierce", label: "Пробитие", value: formatChance(stats.pierceChance) },
+        { key: "crit", label: "Крит", value: stats.noCrit ? "выкл" : `${formatChance(stats.critChance)} ×${(stats.critMult || 1.5).toFixed(1)}` },
+        { key: "straight", label: "Прямой выстрел", value: formatChance(stats.straightChance) },
+        { key: "waveHeal", label: "После волны", value: `+${stats.waveHeal || 0} HP` },
     ];
+    if (!compareFrom) return rows;
+    return rows.map((row) => ({
+        ...row,
+        fill: statDiffFill(row.key, compareFrom, stats),
+    }));
+}
+
+function statMetric(key, stats) {
+    switch (key) {
+        case "damage": return (stats.damageMin || 0) * 1000 + (stats.damageMax || 0);
+        case "fire": return shotsPerSec(stats.fireRateMs);
+        case "spread": return -(stats.spread || 0);
+        case "hp": return stats.maxHp || 0;
+        case "regen": return stats.regenPerSec || 0;
+        case "double": return stats.doubleChance || 0;
+        case "multi": return stats.multiChance || 0;
+        case "triple": return (stats.pelletCount || 1) >= 3 ? 1 : 0;
+        case "twin": return stats.noCrit || (stats.pelletCount || 1) === 2 ? 1 : 0;
+        case "homing": return stats.homing ? 1 : 0;
+        case "explode": return stats.explodeChance || 0;
+        case "pierce": return (stats.pierceChance || 0) + (stats.pierce || 0);
+        case "crit": return stats.noCrit ? -1 : (stats.critChance || 0) * 10 + (stats.critMult || 0);
+        case "straight": return stats.straightChance || 0;
+        case "waveHeal": return stats.waveHeal || 0;
+        default: return 0;
+    }
+}
+
+function statDiffFill(key, from, to) {
+    const a = statMetric(key, from);
+    const b = statMetric(key, to);
+    if (Math.abs(a - b) < 1e-9) return FILL_NEUTRAL;
+    return b > a ? FILL_UP : FILL_DOWN;
 }

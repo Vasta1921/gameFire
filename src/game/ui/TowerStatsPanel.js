@@ -46,7 +46,7 @@ export function addInfoPanel(scene, x, y, options = {}) {
         }).setOrigin(0, 0.5);
         const value = scene.add.text(colCx + colW / 2 - 18, rowY, row.value, {
             fontSize: compact ? "18px" : "22px",
-            fill: "#ffe8d6",
+            fill: row.fill ?? "#ffe8d6",
             fontStyle: "bold",
         }).setOrigin(1, 0.5);
         nodes.push(label, value);

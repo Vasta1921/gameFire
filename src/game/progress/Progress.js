@@ -256,7 +256,7 @@ function rollsNeedPersist(rawRolls, repaired) {
         if (typeof raw?.spreadDegAdd === "number" && typeof mod.spreadDegAdd !== "number"
             && !(raw?.extraKeys || []).includes("spread")) return true;
         if (typeof mod.damageAdd === "number" && mod.damageAdd > 0
-            && (raw?.damageAdd ?? 0) > mod.damageAdd + (mod.damageVar ?? 0) + 40) return true;
+            && (raw?.damageAdd ?? 0) > mod.damageAdd + 40) return true;
         if (typeof mod.damageAdd === "number" && mod.damageAdd < 0) {
             const extraCap = (raw?.extraKeys || []).includes("damage") ? STAT_SCALE * 2 : 0;
             if ((raw?.damageAdd ?? 0) > extraCap) return true;
@@ -531,7 +531,7 @@ export function getBaseMaxHp() {
 }
 
 /** Боевые параметры из купленных уровней. */
-export function getCombatStats() {
+export function getCombatStats(options = {}) {
     const data = read();
     const { upgrades } = data;
     const fireRate = upgrades.fireRate;
@@ -559,7 +559,11 @@ export function getCombatStats() {
         homing: false,
         waveHeal: waveHealForLevel(upgrades.waveHeal || 0),
     };
-    return applyModifiersToStats(base, data.equippedMods, data.modRolls);
+    return applyModifiersToStats(
+        base,
+        options.equippedMods ?? data.equippedMods,
+        options.modRolls ?? data.modRolls,
+    );
 }
 
 export function buyModifier(modId) {

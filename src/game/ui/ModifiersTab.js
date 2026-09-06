@@ -4,9 +4,11 @@ import {
     buyModifier,
     equipModifier,
     formatCoins,
+    getCombatStats,
     loadProgress,
     unequipModifier,
 } from "../progress/Progress.js";
+import { combatStatRows } from "../progress/combatFormat.js";
 import {
     MODIFIERS,
     MOD_SLOT_COUNT,
@@ -14,9 +16,10 @@ import {
     RARITY_META,
     firstFreeSlot,
     getModifier,
-    modifierStatLines,
     modifiersOf,
+    previewEquippedLoadout,
     slotRarity,
+    snapshotModifierBase,
 } from "../progress/Modifiers.js";
 
 const SLOT_LAYOUT = [
@@ -60,7 +63,26 @@ export function addModifiersTab(scene, options = {}) {
         ));
     }
 
-    const stats = addTowerStatsPanel(scene, 545, 230, { compact: true, width: 300, cols: 1 });
+    const currentStats = getCombatStats();
+    const previewId = selectedId;
+    const previewing = previewId && !progress.equippedMods.includes(previewId);
+    const previewMod = previewing ? getModifier(previewId) : null;
+    const previewStats = previewMod
+        ? getCombatStats({
+            equippedMods: previewEquippedLoadout(progress.equippedMods, previewId, selectedSlot),
+            modRolls: {
+                ...(progress.modRolls || {}),
+                [previewId]: progress.modRolls?.[previewId] ?? snapshotModifierBase(previewMod),
+            },
+        })
+        : currentStats;
+    const stats = addTowerStatsPanel(scene, 545, 230, {
+        compact: true,
+        width: 300,
+        cols: 1,
+        stats: previewStats,
+        rows: combatStatRows(previewStats, previewing ? currentStats : null),
+    });
     add(...stats.nodes);
 
     const statsBottom = 230 + stats.height / 2;
@@ -171,8 +193,6 @@ function makeDetail(scene, cx, y, selectedId, selectedSlot, progress, options) {
 
     const owned = progress.ownedMods.includes(mod.id);
     const equipped = progress.equippedMods.includes(mod.id);
-    const roll = owned ? progress.modRolls?.[mod.id] : null;
-    const lines = modifierStatLines(mod, roll);
     const rarity = RARITY_META[mod.rarity];
 
     const title = scene.add.text(cx, y - 8, mod.title, {
@@ -186,29 +206,15 @@ function makeDetail(scene, cx, y, selectedId, selectedSlot, progress, options) {
         fill: rarity.fill,
     }).setOrigin(0.5);
 
-    const hint = scene.add.text(cx, y + 54, mod.hint, {
-        fontSize: "20px",
-        fill: "#a78a7a",
+    const hint = scene.add.text(cx, y + 64, mod.hint, {
+        fontSize: "22px",
+        fill: "#c4b5a5",
         align: "center",
         wordWrap: { width: 600 },
     }).setOrigin(0.5);
 
-    const rollHint = scene.add.text(cx, y + 88, owned
-        ? "Значения этого экземпляра"
-        : "При покупке каждое значение случайно в диапазоне", {
-        fontSize: "16px",
-        fill: "#6b5b53",
-    }).setOrigin(0.5);
-
-    const stats = scene.add.text(cx, y + 128, lines.join("\n"), {
-        fontSize: "20px",
-        fill: "#c4b5a5",
-        align: "center",
-        lineSpacing: 6,
-    }).setOrigin(0.5);
-
-    const nodes = [panel, title, classLabel, hint, rollHint, stats];
-    nodes.push(...makeActionButton(scene, cx, y + 210, mod, owned, equipped, selectedSlot, progress, options));
+    const nodes = [panel, title, classLabel, hint];
+    nodes.push(...makeActionButton(scene, cx, y + 200, mod, owned, equipped, selectedSlot, progress, options));
     return nodes;
 }
 
