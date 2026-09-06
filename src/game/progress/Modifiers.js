@@ -12,10 +12,10 @@ export const RARITY = {
 export const RARITY_META = {
     common: { title: "Обычный", color: 0x94a3b8, fill: "#94a3b8" },
     rare: { title: "Редкий", color: 0xa78bfa, fill: "#c4b5ff" },
-    legendary: { title: "Легендарный", color: 0xfbbf24, fill: "#fbbf24" },
+    legendary: { title: "Особый", color: 0xfbbf24, fill: "#fbbf24" },
 };
 
-/** 1 легендарный, 2 редких, 3 обычных. */
+/** 1 особый, 2 редких, 3 обычных. */
 export const MOD_SLOTS = [
     { rarity: RARITY.legendary },
     { rarity: RARITY.rare },
@@ -103,6 +103,16 @@ export const MODIFIERS = [
         damageVar: 1 * STAT_SCALE,
     },
     {
+        id: "twin",
+        title: "Спарка",
+        hint: "Всегда два снаряда. Криты с этого мода не работают.",
+        rarity: RARITY.rare,
+        cost: 1860,
+        color: 0x67e8f9,
+        twinShot: true,
+        noCrit: true,
+    },
+    {
         id: "seeker",
         title: "Наведение",
         hint: "Снаряды догоняют цель. Реже и слабее выстрелы.",
@@ -172,6 +182,8 @@ export function snapshotModifierBase(mod) {
     if (typeof mod.fireRateMsAdd === "number") roll.fireRateMsAdd = mod.fireRateMsAdd;
     if (mod.homing) roll.homing = true;
     if (mod.tripleShot) roll.tripleShot = true;
+    if (mod.twinShot) roll.twinShot = true;
+    if (mod.noCrit) roll.noCrit = true;
     roll.tuneLevel = 0;
     roll.extraKeys = [];
     return roll;
@@ -190,6 +202,8 @@ export function rollModifierStats(mod) {
     }
     if (mod.homing) roll.homing = true;
     if (mod.tripleShot) roll.tripleShot = true;
+    if (mod.twinShot) roll.twinShot = true;
+    if (mod.noCrit) roll.noCrit = true;
     roll.tuneLevel = 0;
     roll.extraKeys = [];
     return roll;
@@ -231,6 +245,11 @@ function repairModifierRoll(mod, roll) {
         if (next.damageAdd > extraCap) {
             const softened = mod.damageAdd + Math.min(next.tuneLevel || 0, 2) * STAT_SCALE;
             next.damageAdd = Math.min(extraCap, Math.min(0, softened) + extraCap);
+        }
+    }
+    if (typeof next.fireRateMsAdd === "number" && typeof mod.fireRateMsAdd !== "number") {
+        if (!extraKeysOf(next).includes("fire")) {
+            delete next.fireRateMsAdd;
         }
     }
     return next;
@@ -301,6 +320,8 @@ export function applyModifiersToStats(stats, equippedIds, rolls) {
         }
         if (rolled.homing) next.homing = true;
         if (rolled.tripleShot) next.pelletCount = Math.max(next.pelletCount || 1, 3);
+        if (rolled.twinShot) next.pelletCount = Math.max(next.pelletCount || 1, 2);
+        if (rolled.noCrit) next.noCrit = true;
         if (typeof rolled.doubleChanceAdd === "number") {
             next.doubleChance = Math.min(CHANCE_MAX, (next.doubleChance || 0) + rolled.doubleChanceAdd);
         }
@@ -350,6 +371,8 @@ export function modifierStatLines(mod, roll) {
     }
     if (mod.homing || roll?.homing) lines.push("Самонаводящиеся снаряды");
     if (mod.tripleShot || roll?.tripleShot) lines.push("тройной выстрел");
+    if (mod.twinShot || roll?.twinShot) lines.push("всегда двойной выстрел");
+    if (mod.noCrit || roll?.noCrit) lines.push("без критов");
     if (roll && typeof roll.doubleChanceAdd === "number") {
         lines.push(`двойной выстрел +${Math.round(roll.doubleChanceAdd * 100)}%`);
     }
@@ -380,6 +403,7 @@ export function nativeTraitIds(mod) {
     if (typeof mod.fireRateMsAdd === "number") keys.push("fire");
     if (mod.homing) keys.push("homing");
     if (mod.tripleShot) keys.push("triple");
+    if (mod.twinShot) keys.push("twin");
     return keys;
 }
 

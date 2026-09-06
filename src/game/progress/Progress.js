@@ -74,6 +74,7 @@ const DEFAULT = {
         cap: 0,
         lastAt: 0,
     },
+    seenEnemyIntros: [],
 };
 
 export const SHOP_GROUPS = [
@@ -156,7 +157,7 @@ export const SHOP_ITEMS = [
         id: "doubleShot",
         group: "special",
         title: "Двойной выстрел",
-        hint: "Шанс двух пуль за залп, +1% за уровень",
+        hint: "Шанс двух пуль рядом за залп, +1% за уровень",
         max: CHANCE_LEVEL_MAX,
         chancePerLevel: CHANCE_PER_LEVEL,
     },
@@ -164,7 +165,7 @@ export const SHOP_ITEMS = [
         id: "multiShot",
         group: "special",
         title: "Мультистрел",
-        hint: "Шанс доп. снаряда за залп, +1% за уровень",
+        hint: "Шанс второго снаряда следом по той же линии, +1% за уровень",
         max: CHANCE_LEVEL_MAX,
         chancePerLevel: CHANCE_PER_LEVEL,
     },
@@ -236,6 +237,7 @@ function read() {
             soundEnabled: data.soundEnabled !== false,
             stats: readCareerStats(data.stats),
             idle: readIdle(data.idle),
+            seenEnemyIntros: readSeenIntros(data.seenEnemyIntros),
         };
         if (!scaled || !statScaled || rollsNeedPersist(data.modRolls, modRolls)) write(parsed);
         return parsed;
@@ -259,6 +261,8 @@ function rollsNeedPersist(rawRolls, repaired) {
             const extraCap = (raw?.extraKeys || []).includes("damage") ? STAT_SCALE * 2 : 0;
             if ((raw?.damageAdd ?? 0) > extraCap) return true;
         }
+        if (typeof raw?.fireRateMsAdd === "number" && typeof mod.fireRateMsAdd !== "number"
+            && !(raw?.extraKeys || []).includes("fire")) return true;
         return false;
     });
 }
@@ -284,6 +288,11 @@ function readIdle(raw) {
         cap: clampLevel(idle.cap, IDLE_CAP_MAX),
         lastAt: Math.max(0, Number(idle.lastAt) || 0),
     };
+}
+
+function readSeenIntros(raw) {
+    if (!Array.isArray(raw)) return [];
+    return [...new Set(raw.map((id) => String(id)))];
 }
 
 function readCareerStats(raw) {
@@ -317,6 +326,19 @@ function readChanceLevel(value) {
 
 export function loadProgress() {
     return read();
+}
+
+export function hasSeenEnemyIntro(id) {
+    return read().seenEnemyIntros.includes(id);
+}
+
+export function markEnemyIntroSeen(id) {
+    const data = read();
+    if (!data.seenEnemyIntros.includes(id)) {
+        data.seenEnemyIntros.push(id);
+        write(data);
+    }
+    return data.seenEnemyIntros;
 }
 
 export function isSoundEnabled() {

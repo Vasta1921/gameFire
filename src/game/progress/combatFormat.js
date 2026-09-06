@@ -44,10 +44,11 @@ export function combatStatRows(stats) {
         { label: "Двойной выстрел", value: formatChance(stats.doubleChance) },
         { label: "Мультистрел", value: formatChance(stats.multiChance) },
         { label: "Тройной залп", value: (stats.pelletCount || 1) >= 3 ? "да" : "нет" },
+        { label: "Всегда двойной", value: stats.noCrit || (stats.pelletCount || 1) === 2 ? "да" : "нет" },
         { label: "Наведение", value: stats.homing ? "да" : "нет" },
         { label: "Взрывной выстрел", value: formatChance(stats.explodeChance) },
         { label: "Пробитие", value: formatChance(stats.pierceChance) },
-        { label: "Крит", value: `${formatChance(stats.critChance)} ×${(stats.critMult || 1.5).toFixed(1)}` },
+        { label: "Крит", value: stats.noCrit ? "выкл" : `${formatChance(stats.critChance)} ×${(stats.critMult || 1.5).toFixed(1)}` },
         { label: "Прямой выстрел", value: formatChance(stats.straightChance) },
         { label: "После волны", value: `+${stats.waveHeal || 0} HP` },
     ];

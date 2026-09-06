@@ -151,7 +151,7 @@ function makeSlot(scene, x, y, index, equippedId, selectedId, selectedSlot, opti
 }
 
 function rarityMark(rarity) {
-    if (rarity === RARITY.legendary) return "лег.";
+    if (rarity === RARITY.legendary) return "особ.";
     if (rarity === RARITY.rare) return "редк.";
     return "обыч.";
 }

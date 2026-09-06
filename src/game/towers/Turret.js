@@ -23,6 +23,7 @@ export class Turret {
             pierceChance = 0,
             explodeChance = 0,
             homing = false,
+            noCrit = false,
             critChance = 0,
             critMult = 1.5,
             straightChance = 0,
@@ -49,6 +50,7 @@ export class Turret {
         this.pierceChance = pierceChance;
         this.explodeChance = explodeChance;
         this.homing = homing;
+        this.noCrit = noCrit;
         this.critChance = critChance;
         this.critMult = critMult;
         this.straightChance = straightChance;
@@ -91,7 +93,7 @@ export class Turret {
         const startX = this.sprite.x + dirX * this.muzzleOffset + perpX * extraSpread;
         const startY = this.sprite.y + dirY * this.muzzleOffset + perpY * extraSpread;
 
-        const crit = this.critChance > 0 && Math.random() < Math.min(0.5, this.critChance);
+        const crit = !this.noCrit && this.critChance > 0 && Math.random() < Math.min(0.5, this.critChance);
         const mult = crit ? (this.critMult || 1.5) : 1;
         let pierce = this.pierce || 0;
         if (this.pierceChance > 0 && Math.random() < Math.min(0.5, this.pierceChance)) {
@@ -113,24 +115,33 @@ export class Turret {
         });
     }
 
-    fireVolley(projectileSystem, pointer) {
-        let pellets = Math.max(1, this.pelletCount || 1);
-        if (this.doubleChance > 0 && Math.random() < Math.min(0.5, this.doubleChance)) {
-            pellets += 1;
-        }
-        if (this.multiChance > 0 && Math.random() < Math.min(0.5, this.multiChance)) {
-            pellets += 1;
-        }
-        const straight = this.straightChance > 0 && Math.random() < Math.min(0.5, this.straightChance);
-        const base = straight ? this.trueAngle(pointer) : this.aimAngle(pointer);
+    fireParallel(projectileSystem, pointer, pellets, baseAngle) {
         if (pellets <= 1) {
-            this.shoot(projectileSystem, pointer, 0, 0, base);
+            this.shoot(projectileSystem, pointer, 0, 0, baseAngle);
             return;
         }
         const spacing = pellets >= 3 ? 10 : 8;
         const start = -((pellets - 1) / 2) * spacing;
         for (let i = 0; i < pellets; i += 1) {
-            this.shoot(projectileSystem, pointer, start + i * spacing, 0, base);
+            this.shoot(projectileSystem, pointer, start + i * spacing, 0, baseAngle);
         }
+    }
+
+    fireVolley(projectileSystem, pointer) {
+        let pellets = Math.max(1, this.pelletCount || 1);
+        if (this.doubleChance > 0 && Math.random() < Math.min(0.5, this.doubleChance)) {
+            pellets += 1;
+        }
+        const burst = this.multiChance > 0 && Math.random() < Math.min(0.5, this.multiChance);
+        const straight = this.straightChance > 0 && Math.random() < Math.min(0.5, this.straightChance);
+        const base = straight ? this.trueAngle(pointer) : this.aimAngle(pointer);
+        this.fireParallel(projectileSystem, pointer, pellets, base);
+        if (!burst) return;
+
+        this.scene.time.delayedCall(56, () => {
+            if (!this.sprite?.active) return;
+            if (this.scene.isGameOver || this.scene.betweenWaves) return;
+            this.fireParallel(projectileSystem, pointer, pellets, base);
+        });
     }
 }

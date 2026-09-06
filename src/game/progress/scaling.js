@@ -12,12 +12,21 @@ export const BASE_SPREAD_RAD = 0.16;
 export const MIN_SPREAD_RAD = 0.04;
 export const SPREAD_PER_LEVEL = 0.0035;
 export const WAVE_HP_GROWTH = 1.09;
+export const WAVE_HP_GROWTH_LATE = 1.15;
 export const WAVE_DMG_GROWTH = 1.065;
+export const WAVE_DMG_GROWTH_LATE = 1.11;
 export const WAVE_REWARD_GROWTH = 1.07;
 export const WAVE_HEAL_GROWTH = 1.06;
 
 export function wavePower(wave, growth) {
     return Math.pow(growth, Math.max(0, (Number(wave) || 1) - 1));
+}
+
+/** До 10-й волны обычный рост, дальше заметно круче. */
+export function waveEnemyPower(wave, earlyGrowth, lateGrowth) {
+    const w = Math.max(1, Math.floor(Number(wave) || 1));
+    if (w <= 10) return wavePower(w, earlyGrowth);
+    return wavePower(10, earlyGrowth) * Math.pow(lateGrowth, w - 10);
 }
 
 /** Сумма геометрической прогрессии: каждый уровень сильнее предыдущего. */

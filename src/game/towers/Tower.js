@@ -52,6 +52,7 @@ export class Tower {
             turret.pierceChance = stats.pierceChance ?? 0;
             turret.explodeChance = stats.explodeChance ?? 0;
             turret.homing = Boolean(stats.homing);
+            turret.noCrit = Boolean(stats.noCrit);
             turret.critChance = stats.critChance ?? 0;
             turret.critMult = stats.critMult || 1.5;
             turret.straightChance = stats.straightChance ?? 0;

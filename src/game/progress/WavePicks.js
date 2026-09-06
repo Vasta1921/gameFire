@@ -45,7 +45,7 @@ export const WAVE_PICKS = [
     {
         id: "doubleChance",
         title: "Двойной выстрел",
-        hint: "Шанс двух пуль за залп",
+        hint: "Шанс двух пуль рядом",
         apply(run) {
             run.doubleChance = Math.min(CHANCE_MAX, run.doubleChance + 0.14);
         },
@@ -53,7 +53,7 @@ export const WAVE_PICKS = [
     {
         id: "multiChance",
         title: "Мультистрел",
-        hint: "Шанс доп. снаряда за залп",
+        hint: "Шанс второго снаряда следом",
         apply(run) {
             run.multiChance = Math.min(CHANCE_MAX, (run.multiChance || 0) + 0.14);
         },
@@ -98,6 +98,7 @@ export function mergeCombatStats(shopStats, run) {
         pierceChance: Math.min(CHANCE_MAX, shopStats.pierceChance || 0),
         explodeChance: Math.min(0.8, (shopStats.explodeChance || 0) + run.explodeChance),
         homing: Boolean(shopStats.homing),
+        noCrit: Boolean(shopStats.noCrit),
         regenPerSec: shopStats.regenPerSec || 0,
         waveHeal: shopStats.waveHeal || 0,
         critChance: Math.min(CHANCE_MAX, shopStats.critChance || 0),

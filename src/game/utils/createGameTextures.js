@@ -10,6 +10,8 @@ export function createGameTextures(scene) {
     createWalkerTexture(scene);
     createOrbTexture(scene);
     createDartTexture(scene);
+    createPentagonTexture(scene);
+    createSquareTexture(scene);
     createBulletTexture(scene, "redBullet", 64, 128);
     createBulletTexture(scene, "greenBullet", 64, 128, {
         glow: 0x1aff44,
@@ -261,6 +263,49 @@ function createDartTexture(scene) {
         g.fillStyle(0x1e40af, 1);
         g.fillTriangle(18, 70, 6, 48, 28, 78);
         g.fillTriangle(54, 70, 66, 48, 44, 78);
+    });
+}
+
+function fillRegularPoly(g, cx, cy, r, sides, rot, color) {
+    g.fillStyle(color, 1);
+    for (let i = 0; i < sides; i += 1) {
+        const a0 = rot + (i * Math.PI * 2) / sides;
+        const a1 = rot + ((i + 1) * Math.PI * 2) / sides;
+        g.fillTriangle(
+            cx,
+            cy,
+            cx + Math.cos(a0) * r,
+            cy + Math.sin(a0) * r,
+            cx + Math.cos(a1) * r,
+            cy + Math.sin(a1) * r
+        );
+    }
+}
+
+function createPentagonTexture(scene) {
+    createTexture(scene, "enemyPentagon", 96, 96, (g) => {
+        fillRegularPoly(g, 48, 50, 44, 5, -Math.PI / 2, 0x334155);
+        fillRegularPoly(g, 48, 50, 34, 5, -Math.PI / 2, 0x64748b);
+        fillRegularPoly(g, 48, 50, 18, 5, -Math.PI / 2, 0xcbd5e1);
+        g.fillStyle(0x1e293b, 1);
+        g.fillTriangle(48, 28, 40, 58, 56, 58);
+        g.fillStyle(0xe2e8f0, 1);
+        g.fillTriangle(48, 34, 43, 54, 53, 54);
+    });
+}
+
+function createSquareTexture(scene) {
+    createTexture(scene, "enemySquare", 88, 88, (g) => {
+        g.fillStyle(0x14532d, 1);
+        g.fillRoundedRect(8, 8, 72, 72, 10);
+        g.fillStyle(0x22c55e, 1);
+        g.fillRoundedRect(14, 14, 60, 60, 8);
+        g.fillStyle(0x86efac, 1);
+        g.fillRoundedRect(34, 22, 20, 44, 4);
+        g.fillRoundedRect(22, 34, 44, 20, 4);
+        g.fillStyle(0xecfdf5, 1);
+        g.fillRoundedRect(38, 26, 12, 36, 3);
+        g.fillRoundedRect(26, 38, 36, 12, 3);
     });
 }
 

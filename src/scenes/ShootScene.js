@@ -1,6 +1,6 @@
 import { createGameTextures } from "../game/utils/createGameTextures.js";
 import { ProjectileSystem } from "../game/bullets/ProjectileSystem.js";
-import { EnemyManager } from "../game/enemies/EnemyManager.js";
+import { EnemyManager, introForWave } from "../game/enemies/EnemyManager.js";
 import { Tower } from "../game/towers/Tower.js";
 import { Base } from "../game/base/Base.js";
 import { AutoFireController } from "../game/combat/AutoFireController.js";
@@ -12,10 +12,11 @@ import {
 import { Hud } from "../game/ui/Hud.js";
 import { WorkshopOverlay } from "../game/ui/WorkshopOverlay.js";
 import { WavePickOverlay } from "../game/ui/WavePickOverlay.js";
+import { EnemyIntroOverlay } from "../game/ui/EnemyIntroOverlay.js";
 import { ExplosionFx } from "../game/fx/ExplosionFx.js";
 import { SpaceBackdrop } from "../game/fx/SpaceBackdrop.js";
 import { getSoundFx } from "../game/audio/SoundFx.js";
-import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave, bumpCareerStats, finishRunRecord, resumeIdleClock } from "../game/progress/Progress.js";
+import { addCoins, getCombatStats, getBaseMaxHp, loadProgress, getUnlockedStartWave, recordWaveCleared, isBossWave, bumpCareerStats, finishRunRecord, resumeIdleClock, hasSeenEnemyIntro, markEnemyIntroSeen } from "../game/progress/Progress.js";
 import { STAT_SCALE } from "../game/progress/scaling.js";
 import { createRunMods, mergeCombatStats, pickThreeUpgrades } from "../game/progress/WavePicks.js";
 
@@ -40,6 +41,7 @@ export class ShootScene extends Phaser.Scene {
         this.betweenWaves = false;
         this.workshop = null;
         this.wavePick = null;
+        this.enemyIntro = null;
         this.currentWave = this.menuStartWave || 1;
         this.runMods = createRunMods();
         this.runFinished = false;
@@ -103,7 +105,12 @@ export class ShootScene extends Phaser.Scene {
         this.hud = new Hud(this, { onPause: () => this.togglePause() });
         this.hud.setBaseHp(this.base.hp, this.base.maxHp);
         this.hud.setWave(this.currentWave);
-        this.enemyManager.startWave(this.currentWave);
+        this.maybeEnemyIntro(this.currentWave, () => {
+            this.physics.resume();
+            this.betweenWaves = false;
+            this.hud.setPauseVisible(true);
+            this.enemyManager.startWave(this.currentWave);
+        });
 
         setupBulletEnemyCollision(
             this,
@@ -139,7 +146,7 @@ export class ShootScene extends Phaser.Scene {
         this.input.on("pointerdown", (pointer, currentlyOver) => {
             this.sfx.unlock();
             if (currentlyOver?.some((obj) => obj === this.hud.pauseBtn)) return;
-            if (this.isGameOver || this.betweenWaves || this.isPaused) return;
+            if (this.isGameOver || this.betweenWaves || this.isPaused || this.enemyIntro) return;
             this.autoFire.start();
         });
         this.input.on("pointerup", () => this.autoFire.stop());
@@ -218,12 +225,14 @@ export class ShootScene extends Phaser.Scene {
     enemyBurstKind(enemy) {
         if (enemy.enemyType?.id === "orb") return "red";
         if (enemy.enemyType?.id === "dart") return "blue";
+        if (enemy.enemyType?.id === "pentagon") return "blue";
         return "green";
     }
 
     damageEnemy(enemy, damage, x, y, options = {}) {
         if (!enemy?.active) return;
-        enemy.hp = (enemy.hp ?? 5) - damage;
+        const dealt = this.enemyManager.armorMitigate(enemy, damage);
+        enemy.hp = (enemy.hp ?? 5) - dealt;
         if (enemy.hp > 0) {
             this.enemyManager.applyHpTint(enemy);
             return;
@@ -242,6 +251,7 @@ export class ShootScene extends Phaser.Scene {
             this.runLog.bosses += 1;
             bumpCareerStats({ bosses: 1 });
         }
+        this.enemyManager.clearAura(enemy);
         enemy.destroy();
     }
 
@@ -378,7 +388,7 @@ export class ShootScene extends Phaser.Scene {
     }
 
     togglePause() {
-        if (this.isGameOver || this.betweenWaves || this.workshop || this.wavePick) return;
+        if (this.isGameOver || this.betweenWaves || this.workshop || this.wavePick || this.enemyIntro) return;
         if (this.isPaused) {
             this.resumeFromPause();
             return;
@@ -409,14 +419,36 @@ export class ShootScene extends Phaser.Scene {
         this.beginNextWave();
     }
 
+    maybeEnemyIntro(wave, onDone) {
+        const type = introForWave(wave);
+        if (!type || hasSeenEnemyIntro(type.id)) {
+            onDone();
+            return;
+        }
+        this.betweenWaves = true;
+        this.autoFire?.stop();
+        this.physics.pause();
+        this.hud?.setPauseVisible(false);
+        this.enemyIntro = new EnemyIntroOverlay(this, {
+            type,
+            onClose: () => {
+                markEnemyIntroSeen(type.id);
+                this.enemyIntro = null;
+                onDone();
+            },
+        });
+    }
+
     beginNextWave() {
-        this.backdrop.setSpawnsPaused(false);
-        this.physics.resume();
-        this.betweenWaves = false;
-        this.currentWave = this.nextWave;
-        this.hud.setWave(this.currentWave);
-        this.hud.setPauseVisible(true);
-        this.enemyManager.startWave(this.currentWave);
+        this.maybeEnemyIntro(this.nextWave, () => {
+            this.backdrop.setSpawnsPaused(false);
+            this.physics.resume();
+            this.betweenWaves = false;
+            this.currentWave = this.nextWave;
+            this.hud.setWave(this.currentWave);
+            this.hud.setPauseVisible(true);
+            this.enemyManager.startWave(this.currentWave);
+        });
     }
 
     continueFromWorkshop() {

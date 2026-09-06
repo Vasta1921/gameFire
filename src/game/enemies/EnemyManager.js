@@ -1,8 +1,12 @@
-import { STAT_SCALE, WAVE_DMG_GROWTH, WAVE_HP_GROWTH, WAVE_REWARD_GROWTH, scaleByWave, wavePower } from "../progress/scaling.js";
+import { STAT_SCALE, WAVE_DMG_GROWTH, WAVE_DMG_GROWTH_LATE, WAVE_HP_GROWTH, WAVE_HP_GROWTH_LATE, WAVE_REWARD_GROWTH, scaleByWave, waveEnemyPower } from "../progress/scaling.js";
 
 const WALKER = {
     id: "walker",
     key: "enemyWalker",
+    unlockWave: 1,
+    title: "Зелёный разведчик",
+    blurb: "Основной пехотинец осады.",
+    trait: "Подходит к крепости и ведёт огонь.",
     weight: 3,
     hp: 5,
     speedY: 95,
@@ -18,6 +22,10 @@ const WALKER = {
 const ORB = {
     id: "orb",
     key: "enemyOrb",
+    unlockWave: 6,
+    title: "Красный орб",
+    blurb: "Держит дистанцию и бьёт издалека.",
+    trait: "Останавливается в центре экрана.",
     weight: 1,
     hp: 2,
     speedY: 48,
@@ -33,6 +41,10 @@ const ORB = {
 const DART = {
     id: "dart",
     key: "enemyDart",
+    unlockWave: 11,
+    title: "Синий клин",
+    blurb: "Быстрый и хрупкий перехватчик.",
+    trait: "Скорость и виляние. Урон как у зелёных.",
     weight: 2,
     hp: 2,
     speedY: 168,
@@ -45,11 +57,69 @@ const DART = {
     coins: 4,
 };
 
+const PENTAGON = {
+    id: "pentagon",
+    key: "enemyPentagon",
+    unlockWave: 21,
+    title: "Пятиугольник",
+    blurb: "Медленный танк с щитом для всех своих.",
+    trait: "Много HP. Аура брони снижает урон рядом.",
+    weight: 1,
+    hp: 14,
+    speedY: 36,
+    fireDelay: 1400,
+    damageMin: 1,
+    damageMax: 2,
+    bulletSpeed: 260,
+    bulletKey: "greenBullet",
+    score: 22,
+    coins: 8,
+    armorAura: true,
+    auraRadius: 128,
+    auraColor: 0xcbd5e1,
+};
+
+const SQUARE = {
+    id: "square",
+    key: "enemySquare",
+    unlockWave: 16,
+    title: "Квадрат-медик",
+    blurb: "Поддерживает строй лечением.",
+    trait: "Аура лечения союзников рядом.",
+    weight: 1,
+    hp: 7,
+    speedY: 52,
+    fireDelay: 1250,
+    damageMin: 1,
+    damageMax: 1,
+    bulletSpeed: 270,
+    bulletKey: "greenBullet",
+    score: 18,
+    coins: 7,
+    healAura: true,
+    auraRadius: 118,
+    auraColor: 0x4ade80,
+};
+
+export const ENEMY_ROSTER = [WALKER, ORB, DART, SQUARE, PENTAGON];
+
+export function typesUnlockedAt(wave) {
+    return ENEMY_ROSTER.filter((type) => wave >= (type.unlockWave || 1));
+}
+
+export function introForWave(wave) {
+    return ENEMY_ROSTER.find((type) => type.unlockWave === wave) || null;
+}
+
 const SIZES = {
     walker: [26, 46],
     orb: [32, 36],
     dart: [22, 50],
+    pentagon: [46, 46],
+    square: [40, 40],
 };
+
+const ARMOR_RESIST = 0.45;
 
 const BOSS_SCALE = 2.6;
 const BOSS_HP = 8;
@@ -63,7 +133,7 @@ const BOSS_FIRE = 0.68;
 export class EnemyManager {
     constructor(scene, options = {}) {
         this.scene = scene;
-        this.types = options.types ?? [WALKER, ORB, DART];
+        this.types = options.types ?? ENEMY_ROSTER;
         this.group = scene.physics.add.group();
         this.projectiles = options.projectiles;
         this.base = options.base;
@@ -110,7 +180,7 @@ export class EnemyManager {
         const cameraWidth = this.scene.cameras.main.width;
         const x = Phaser.Math.Between(isBoss ? 80 : 28, cameraWidth - (isBoss ? 80 : 28));
         const enemy = this.group.create(x, isBoss ? -70 : -20, type.key);
-        const hp = Math.round(type.hp * STAT_SCALE * wavePower(this.wave, WAVE_HP_GROWTH) * (isBoss ? BOSS_HP : 1));
+        const hp = Math.round(type.hp * STAT_SCALE * waveEnemyPower(this.wave, WAVE_HP_GROWTH, WAVE_HP_GROWTH_LATE) * (isBoss ? BOSS_HP : 1));
 
         enemy.enemyType = type;
         enemy.isBoss = isBoss;
@@ -128,33 +198,29 @@ export class EnemyManager {
         const sizeK = isBoss ? BOSS_SCALE : 1;
         enemy.setDisplaySize(Math.round(dw * sizeK), Math.round(dh * sizeK));
 
-        const speed = Math.round(type.speedY * Math.min(2.5, wavePower(this.wave, 1.025)) * (isBoss ? BOSS_SPEED : 1));
+        const speed = Math.round(type.speedY * Math.min(2.5, waveEnemyPower(this.wave, 1.025, 1.035)) * (isBoss ? BOSS_SPEED : 1));
         enemy.setVelocity(0, speed);
         enemy.swayPhase = Math.random() * Math.PI * 2;
+        enemy.nextHealAt = 0;
+        this.attachAura(enemy);
         return enemy;
     }
 
     spawnBoss() {
-        const pool = [WALKER, ORB, DART];
-        const type = pool[Math.floor(Math.random() * pool.length)];
+        const pool = typesUnlockedAt(this.wave);
+        const type = pool[Math.floor(Math.random() * pool.length)] || WALKER;
         this.spawnEnemy(type, { boss: true });
     }
 
     pickType() {
-        const orbWeight = Math.min(4, 1 + Math.floor((this.wave - 1) / 3));
-        const dartWeight = Math.min(3, 1 + Math.floor((this.wave - 1) / 4));
-        const types = [
-            { ...WALKER, weight: 3 },
-            { ...ORB, weight: orbWeight },
-            { ...DART, weight: dartWeight },
-        ];
+        const types = typesUnlockedAt(this.wave);
         const total = types.reduce((sum, type) => sum + type.weight, 0);
         let roll = Math.random() * total;
         for (const type of types) {
             roll -= type.weight;
             if (roll <= 0) return type;
         }
-        return types[0];
+        return types[0] || WALKER;
     }
 
     aliveCount() {
@@ -190,7 +256,9 @@ export class EnemyManager {
                 );
 
                 const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, aim.x, aim.y);
-                enemy.setRotation(angle - Math.PI / 2);
+                if (enemy.enemyType?.id !== "pentagon" && enemy.enemyType?.id !== "square") {
+                    enemy.setRotation(angle - Math.PI / 2);
+                }
 
                 if (time >= enemy.nextFireAt) {
                     this.shootAtBase(enemy, aim, angle);
@@ -200,6 +268,8 @@ export class EnemyManager {
                     enemy.nextFireAt = time + delay;
                 }
             }
+
+            this.updateAura(enemy, time);
         });
 
         this.checkWaveClear();
@@ -229,6 +299,7 @@ export class EnemyManager {
         const startY = enemy.y + Math.sin(angle) * muzzle;
         const dmgK = isBoss ? BOSS_DAMAGE : 1;
 
+        const dmgScale = waveEnemyPower(this.wave, WAVE_DMG_GROWTH, WAVE_DMG_GROWTH_LATE) * STAT_SCALE * dmgK;
         this.projectiles.shoot(startX, startY, angle, {
             team: "enemy",
             textureKey: type.bulletKey,
@@ -236,9 +307,74 @@ export class EnemyManager {
             width: isBoss ? 14 : 8,
             height: isBoss ? 26 : 16,
             depth: 2,
-            damageMin: scaleByWave(type.damageMin, this.wave, WAVE_DMG_GROWTH) * STAT_SCALE * dmgK,
-            damageMax: scaleByWave(type.damageMax, this.wave, WAVE_DMG_GROWTH) * STAT_SCALE * dmgK,
+            damageMin: Math.max(1, Math.round(type.damageMin * dmgScale)),
+            damageMax: Math.max(1, Math.round(type.damageMax * dmgScale)),
         });
+    }
+
+    auraRadiusOf(enemy) {
+        const r = enemy.enemyType?.auraRadius || 0;
+        return enemy.isBoss ? Math.round(r * 1.65) : r;
+    }
+
+    attachAura(enemy) {
+        const type = enemy.enemyType;
+        if (!type?.armorAura && !type?.healAura) return;
+        const color = type.auraColor || 0xffffff;
+        const ring = this.scene.add.circle(enemy.x, enemy.y, this.auraRadiusOf(enemy), color, 0.1);
+        ring.setStrokeStyle(2, color, 0.6);
+        ring.setDepth(1.4);
+        enemy.aura = ring;
+    }
+
+    updateAura(enemy, time) {
+        if (enemy.aura?.active) {
+            enemy.aura.setPosition(enemy.x, enemy.y);
+            enemy.aura.setScale(1 + Math.sin(time / 280) * 0.05);
+        }
+        if (enemy.enemyType?.healAura && time >= (enemy.nextHealAt || 0)) {
+            this.applyHealAura(enemy);
+            enemy.nextHealAt = time + 480;
+        }
+    }
+
+    clearAura(enemy) {
+        if (enemy?.aura) {
+            enemy.aura.destroy();
+            enemy.aura = null;
+        }
+    }
+
+    inArmorAura(target) {
+        let armored = false;
+        this.group.children.iterate((enemy) => {
+            if (armored || !enemy?.active || !enemy.enemyType?.armorAura) return;
+            const r = this.auraRadiusOf(enemy);
+            const dx = target.x - enemy.x;
+            const dy = target.y - enemy.y;
+            if (dx * dx + dy * dy <= r * r) armored = true;
+        });
+        return armored;
+    }
+
+    applyHealAura(healer) {
+        const r = this.auraRadiusOf(healer);
+        const r2 = r * r;
+        this.group.children.iterate((enemy) => {
+            if (!enemy?.active) return;
+            const dx = enemy.x - healer.x;
+            const dy = enemy.y - healer.y;
+            if (dx * dx + dy * dy > r2) return;
+            if (enemy.hp >= enemy.maxHp) return;
+            const amount = Math.max(2, Math.round(enemy.maxHp * 0.016));
+            enemy.hp = Math.min(enemy.maxHp, enemy.hp + amount);
+            this.applyHpTint(enemy);
+        });
+    }
+
+    armorMitigate(enemy, damage) {
+        if (!this.inArmorAura(enemy)) return damage;
+        return Math.max(1, Math.round(damage * (1 - ARMOR_RESIST)));
     }
 
     applyHpTint(enemy) {
@@ -259,6 +395,26 @@ export class EnemyManager {
                     Math.round(30 + 40 * ratio),
                     Math.round(70 + 90 * ratio),
                     Math.round(140 + 110 * ratio)
+                )
+            );
+            return;
+        }
+        if (enemy.enemyType?.id === "pentagon") {
+            enemy.setTint(
+                Phaser.Display.Color.GetColor(
+                    Math.round(70 + 80 * ratio),
+                    Math.round(80 + 90 * ratio),
+                    Math.round(100 + 80 * ratio)
+                )
+            );
+            return;
+        }
+        if (enemy.enemyType?.id === "square") {
+            enemy.setTint(
+                Phaser.Display.Color.GetColor(
+                    Math.round(20 + 40 * ratio),
+                    Math.round(90 + 140 * ratio),
+                    Math.round(40 + 60 * ratio)
                 )
             );
             return;
