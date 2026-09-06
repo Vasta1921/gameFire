@@ -1,5 +1,5 @@
 import { SHOP_ITEMS, SHOP_GROUPS, buyUpgrade, getUpgradeCost, formatCoins, BASE_HP, HP_PER_LEVEL } from "../progress/Progress.js";
-import { upgradeStack, fireRateMsForLevel, damageRangeForLevel, regenPerSecForLevel, spreadRadForLevel, spreadPercent } from "../progress/scaling.js";
+import { upgradeStack, fireRateMsForLevel, damageRangeForLevel, regenPerSecForLevel, spreadRadForLevel, spreadPercent, waveHealForLevel, critMultForLevel } from "../progress/scaling.js";
 import { formatShotsPerSec } from "../progress/combatFormat.js";
 
 /** Строки улучшений для меню и мастерской. */
@@ -90,6 +90,12 @@ function makeRow(scene, x, y, item, progress, onBought) {
         const level = progress.upgrades[item.id] || 0;
         const regen = regenPerSecForLevel(level);
         status = `Ур. ${level}/${item.max} · ${regen.toFixed(1)} HP/с`;
+    } else if (item.waveHeal) {
+        const level = progress.upgrades[item.id] || 0;
+        status = `Ур. ${level}/${item.max} · +${waveHealForLevel(level)} HP`;
+    } else if (item.critMult) {
+        const level = progress.upgrades[item.id] || 0;
+        status = `Ур. ${level}/${item.max} · ×${critMultForLevel(level).toFixed(1)}`;
     } else if (item.id === "spread") {
         const level = progress.upgrades[item.id] || 0;
         const pct = spreadPercent(spreadRadForLevel(level));

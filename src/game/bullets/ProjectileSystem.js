@@ -73,6 +73,7 @@ export class ProjectileSystem {
         bullet.hitList = [];
         bullet.homing = Boolean(options.homing);
         bullet.homingSpeed = speed;
+        bullet.crit = Boolean(options.crit);
 
         bullet.setTexture(textureKey);
         bullet.setActive(true);
@@ -82,8 +83,13 @@ export class ProjectileSystem {
         bullet.setDepth(depth);
         bullet.setDisplaySize(width, height);
         bullet.setRotation(angle + Math.PI / 2);
-        if (bullet.explodes) bullet.setTint(0xffaa66);
-        else if (bullet.homing) bullet.setTint(0x66d9ff);
+        if (bullet.crit) {
+            bullet.setTint(0xb8ffc8);
+        } else if (bullet.explodes) {
+            bullet.setTint(0xffaa66);
+        } else if (bullet.homing) {
+            bullet.setTint(0x66d9ff);
+        }
 
         if (bullet.body) {
             bullet.body.enable = true;
@@ -112,6 +118,7 @@ export class ProjectileSystem {
         bullet.lastHit = null;
         bullet.hitList = [];
         bullet.homing = false;
+        bullet.crit = false;
         bullet.clearTint();
         bullet.disableBody(true, true);
     }

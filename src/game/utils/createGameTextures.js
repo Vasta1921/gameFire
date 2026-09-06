@@ -9,6 +9,7 @@ export function createGameTextures(scene) {
     createWallTexture(scene);
     createWalkerTexture(scene);
     createOrbTexture(scene);
+    createDartTexture(scene);
     createBulletTexture(scene, "redBullet", 64, 128);
     createBulletTexture(scene, "greenBullet", 64, 128, {
         glow: 0x1aff44,
@@ -16,6 +17,13 @@ export function createGameTextures(scene) {
         body: 0x33dd55,
         inner: 0x88ff99,
         core: 0xeaffea,
+    });
+    createBulletTexture(scene, "blueBullet", 64, 128, {
+        glow: 0x38bdf8,
+        outer: 0x1d4ed8,
+        body: 0x3b82f6,
+        inner: 0x93c5fd,
+        core: 0xeff6ff,
     });
     createSparkTexture(scene, "spark");
     createSparkTexture(scene, "sparkRed");
@@ -229,6 +237,30 @@ function createWalkerTexture(scene) {
             g.fillStyle(0x86efac, 1);
             g.fillTriangle(30, 96, 42, 96, 36, 118);
         });
+    });
+}
+
+function createDartTexture(scene) {
+    createTexture(scene, "enemyDart", 72, 160, (g) => {
+        g.fillStyle(0x1e3a8a, 0.35);
+        g.fillTriangle(36, 18, 10, 4, 62, 4);
+        g.fillStyle(0x1d4ed8, 0.55);
+        g.fillTriangle(36, 48, 16, 8, 56, 8);
+        g.fillStyle(0x2563eb, 0.85);
+        g.fillTriangle(36, 78, 22, 18, 50, 18);
+
+        g.fillStyle(0x1e3a8a, 1);
+        g.fillTriangle(36, 156, 6, 58, 66, 58);
+        g.fillStyle(0x3b82f6, 1);
+        g.fillTriangle(36, 148, 16, 64, 56, 64);
+        g.fillStyle(0x93c5fd, 1);
+        g.fillTriangle(36, 136, 26, 78, 46, 78);
+        g.fillStyle(0xdbeafe, 1);
+        g.fillTriangle(36, 128, 32, 88, 40, 88);
+
+        g.fillStyle(0x1e40af, 1);
+        g.fillTriangle(18, 70, 6, 48, 28, 78);
+        g.fillTriangle(54, 70, 66, 48, 44, 78);
     });
 }
 

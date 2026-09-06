@@ -49,8 +49,12 @@ export class Tower {
             turret.doubleChance = stats.doubleChance ?? 0;
             turret.multiChance = stats.multiChance ?? 0;
             turret.pierce = stats.pierce ?? 0;
+            turret.pierceChance = stats.pierceChance ?? 0;
             turret.explodeChance = stats.explodeChance ?? 0;
             turret.homing = Boolean(stats.homing);
+            turret.critChance = stats.critChance ?? 0;
+            turret.critMult = stats.critMult || 1.5;
+            turret.straightChance = stats.straightChance ?? 0;
         });
     }
 

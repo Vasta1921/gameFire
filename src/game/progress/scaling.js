@@ -60,6 +60,14 @@ export function regenPerSecForLevel(level) {
     return Math.round(n * 0.25 * 10) / 10;
 }
 
+export function waveHealForLevel(level) {
+    return upgradeStack(8, level);
+}
+
+export function critMultForLevel(level) {
+    return Math.round((1.5 + Math.max(0, Math.floor(Number(level) || 0)) * 0.1) * 10) / 10;
+}
+
 export function scaleByWave(base, wave, growth) {
     return Math.max(1, Math.round(base * wavePower(wave, growth)));
 }

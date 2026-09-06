@@ -1,5 +1,5 @@
 import { CHANCE_MAX } from "./combatFormat.js";
-import { STAT_SCALE, upgradeStack, fireRateMsForLevel, damageRangeForLevel, regenPerSecForLevel, spreadRadForLevel } from "./scaling.js";
+import { STAT_SCALE, upgradeStack, fireRateMsForLevel, damageRangeForLevel, regenPerSecForLevel, spreadRadForLevel, waveHealForLevel, critMultForLevel } from "./scaling.js";
 import {
     IDLE_RATE_MAX,
     IDLE_CAP_MAX,
@@ -44,8 +44,14 @@ const DEFAULT = {
         spread: 0,
         health: 0,
         repair: 0,
+        waveHeal: 0,
         doubleShot: 0,
         multiShot: 0,
+        explodeShot: 0,
+        pierceShot: 0,
+        critChance: 0,
+        critMult: 0,
+        straightShot: 0,
     },
     ownedMods: [],
     equippedMods: emptyLoadout(),
@@ -99,6 +105,30 @@ export const SHOP_ITEMS = [
         max: STAT_MAX,
     },
     {
+        id: "critChance",
+        group: "shoot",
+        title: "Шанс крита",
+        hint: "Шанс зелёного снаряда с множителем, +1% за уровень",
+        max: CHANCE_LEVEL_MAX,
+        chancePerLevel: CHANCE_PER_LEVEL,
+    },
+    {
+        id: "critMult",
+        group: "shoot",
+        title: "Множитель крита",
+        hint: "Насколько сильнее крит. Старт ×1.5",
+        max: STAT_MAX,
+        critMult: true,
+    },
+    {
+        id: "straightShot",
+        group: "shoot",
+        title: "Прямой выстрел",
+        hint: "Шанс без разброса, строго в прицел, +1% за уровень",
+        max: CHANCE_LEVEL_MAX,
+        chancePerLevel: CHANCE_PER_LEVEL,
+    },
+    {
         id: "health",
         group: "fortress",
         title: "Здоровье",
@@ -115,6 +145,14 @@ export const SHOP_ITEMS = [
         max: STAT_MAX,
     },
     {
+        id: "waveHeal",
+        group: "fortress",
+        title: "После волны",
+        hint: "Восстанавливает HP крепости после каждой волны",
+        max: STAT_MAX,
+        waveHeal: true,
+    },
+    {
         id: "doubleShot",
         group: "special",
         title: "Двойной выстрел",
@@ -127,6 +165,22 @@ export const SHOP_ITEMS = [
         group: "special",
         title: "Мультистрел",
         hint: "Шанс доп. снаряда за залп, +1% за уровень",
+        max: CHANCE_LEVEL_MAX,
+        chancePerLevel: CHANCE_PER_LEVEL,
+    },
+    {
+        id: "explodeShot",
+        group: "special",
+        title: "Взрывной выстрел",
+        hint: "Шанс урона врагам рядом, +1% за уровень",
+        max: CHANCE_LEVEL_MAX,
+        chancePerLevel: CHANCE_PER_LEVEL,
+    },
+    {
+        id: "pierceShot",
+        group: "special",
+        title: "Пробивной выстрел",
+        hint: "Шанс пройти сквозь врага, +1% за уровень",
         max: CHANCE_LEVEL_MAX,
         chancePerLevel: CHANCE_PER_LEVEL,
     },
@@ -145,6 +199,10 @@ function read() {
         const mods = sanitizeLoadout(data.ownedMods, data.equippedMods, data.modRolls);
         let doubleShot = clampLevel(readChanceLevel(data.upgrades?.doubleShot), CHANCE_LEVEL_MAX);
         let multiShot = clampLevel(data.upgrades?.multiShot, CHANCE_LEVEL_MAX);
+        let explodeShot = clampLevel(data.upgrades?.explodeShot, CHANCE_LEVEL_MAX);
+        let pierceShot = clampLevel(data.upgrades?.pierceShot, CHANCE_LEVEL_MAX);
+        let critChance = clampLevel(data.upgrades?.critChance, CHANCE_LEVEL_MAX);
+        let straightShot = clampLevel(data.upgrades?.straightShot, CHANCE_LEVEL_MAX);
         const scaled = data.chanceScale === 1;
         if (!scaled) {
             doubleShot = Math.min(CHANCE_LEVEL_MAX, Math.round(doubleShot * 2.5));
@@ -161,8 +219,14 @@ function read() {
                 spread: clampLevel(data.upgrades?.spread, STAT_MAX),
                 health: clampLevel(data.upgrades?.health, STAT_MAX),
                 repair: clampLevel(data.upgrades?.repair, STAT_MAX),
+                waveHeal: clampLevel(data.upgrades?.waveHeal, STAT_MAX),
                 doubleShot,
                 multiShot,
+                explodeShot,
+                pierceShot,
+                critChance,
+                critMult: clampLevel(data.upgrades?.critMult, STAT_MAX),
+                straightShot,
             },
             ownedMods: mods.ownedMods,
             equippedMods: mods.equippedMods,
@@ -430,7 +494,7 @@ export function buyUpgrade(itemId) {
     if (item.once) {
         data.upgrades[item.id] = true;
     } else {
-        data.upgrades[item.id] += 1;
+        data.upgrades[item.id] = (Number(data.upgrades[item.id]) || 0) + 1;
     }
     write(data);
     return { ok: true, coins: data.coins, upgrades: data.upgrades };
@@ -464,9 +528,14 @@ export function getCombatStats() {
         pelletCount: 1,
         doubleChance: Math.min(CHANCE_MAX, upgrades.doubleShot * CHANCE_PER_LEVEL),
         multiChance: Math.min(CHANCE_MAX, upgrades.multiShot * CHANCE_PER_LEVEL),
+        critChance: Math.min(CHANCE_MAX, (upgrades.critChance || 0) * CHANCE_PER_LEVEL),
+        critMult: critMultForLevel(upgrades.critMult || 0),
+        straightChance: Math.min(CHANCE_MAX, (upgrades.straightShot || 0) * CHANCE_PER_LEVEL),
         pierce: 0,
-        explodeChance: 0,
+        pierceChance: Math.min(CHANCE_MAX, (upgrades.pierceShot || 0) * CHANCE_PER_LEVEL),
+        explodeChance: Math.min(CHANCE_MAX, (upgrades.explodeShot || 0) * CHANCE_PER_LEVEL),
         homing: false,
+        waveHeal: waveHealForLevel(upgrades.waveHeal || 0),
     };
     return applyModifiersToStats(base, data.equippedMods, data.modRolls);
 }

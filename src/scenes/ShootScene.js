@@ -217,7 +217,7 @@ export class ShootScene extends Phaser.Scene {
 
     enemyBurstKind(enemy) {
         if (enemy.enemyType?.id === "orb") return "red";
-        if (enemy.enemyType?.id === "boss") return "blue";
+        if (enemy.enemyType?.id === "dart") return "blue";
         return "green";
     }
 
@@ -238,7 +238,7 @@ export class ShootScene extends Phaser.Scene {
         this.grantCoins(enemy.coinValue ?? enemy.enemyType?.coins ?? 3, enemy.x, enemy.y);
         this.runLog.kills += 1;
         bumpCareerStats({ kills: 1 });
-        if (enemy.enemyType?.id === "boss") {
+        if (enemy.isBoss) {
             this.runLog.bosses += 1;
             bumpCareerStats({ bosses: 1 });
         }
@@ -268,6 +268,7 @@ export class ShootScene extends Phaser.Scene {
         const stats = mergeCombatStats(getCombatStats(), this.runMods);
         this.tower.applyCombatStats(stats);
         this.regenPerSec = stats.regenPerSec || 0;
+        this.waveHeal = stats.waveHeal || 0;
     }
 
     /** Особый приз: попадание в метеорит. */
@@ -323,6 +324,10 @@ export class ShootScene extends Phaser.Scene {
         recordWaveCleared(wave);
         this.runLog.wavesCleared += 1;
         bumpCareerStats({ wavesCleared: 1 });
+        if ((this.waveHeal || 0) > 0 && this.base && !this.base.isDestroyed()) {
+            this.base.repair(this.waveHeal);
+            this.hud.setBaseHp(this.base.hp, this.base.maxHp);
+        }
         if (this.isPaused) {
             this.hud.hidePause();
             this.isPaused = false;

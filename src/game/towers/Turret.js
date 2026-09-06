@@ -20,8 +20,12 @@ export class Turret {
             doubleChance = 0,
             multiChance = 0,
             pierce = 0,
+            pierceChance = 0,
             explodeChance = 0,
             homing = false,
+            critChance = 0,
+            critMult = 1.5,
+            straightChance = 0,
         } = options;
 
         this.sprite = scene.add.sprite(x, y, key);
@@ -42,8 +46,12 @@ export class Turret {
         this.doubleChance = doubleChance;
         this.multiChance = multiChance;
         this.pierce = pierce;
+        this.pierceChance = pierceChance;
         this.explodeChance = explodeChance;
         this.homing = homing;
+        this.critChance = critChance;
+        this.critMult = critMult;
+        this.straightChance = straightChance;
     }
 
     update(pointer) {
@@ -57,15 +65,19 @@ export class Turret {
         this.sprite.setRotation(angle + this.rotationOffset + Math.PI / 2);
     }
 
-    aimAngle(pointer) {
+    trueAngle(pointer) {
         const angle = Phaser.Math.Angle.Between(
             this.sprite.x,
             this.sprite.y,
             pointer.x,
             pointer.y
         );
+        return angle + this.rotationOffset;
+    }
+
+    aimAngle(pointer) {
         const jitter = Phaser.Math.FloatBetween(-this.spread, this.spread);
-        return angle + this.rotationOffset + jitter;
+        return this.trueAngle(pointer) + jitter;
     }
 
     shoot(projectileSystem, pointer, extraSpread = 0, angleOffset = 0, baseAngle = null) {
@@ -79,16 +91,25 @@ export class Turret {
         const startX = this.sprite.x + dirX * this.muzzleOffset + perpX * extraSpread;
         const startY = this.sprite.y + dirY * this.muzzleOffset + perpY * extraSpread;
 
+        const crit = this.critChance > 0 && Math.random() < Math.min(0.5, this.critChance);
+        const mult = crit ? (this.critMult || 1.5) : 1;
+        let pierce = this.pierce || 0;
+        if (this.pierceChance > 0 && Math.random() < Math.min(0.5, this.pierceChance)) {
+            pierce += 1;
+        }
+
         projectileSystem.shoot(startX, startY, shootAngle, {
             speed: this.bulletSpeed,
             width: this.bulletWidth,
             height: this.bulletHeight,
             depth: 2,
-            damageMin: this.damageMin,
-            damageMax: this.damageMax,
-            pierce: this.pierce,
+            damageMin: Math.max(1, Math.round(this.damageMin * mult)),
+            damageMax: Math.max(1, Math.round(this.damageMax * mult)),
+            pierce,
             explodes: this.explodeChance > 0 && Math.random() < this.explodeChance,
             homing: this.homing,
+            crit,
+            textureKey: crit ? "greenBullet" : undefined,
         });
     }
 
@@ -100,7 +121,8 @@ export class Turret {
         if (this.multiChance > 0 && Math.random() < Math.min(0.5, this.multiChance)) {
             pellets += 1;
         }
-        const base = this.aimAngle(pointer);
+        const straight = this.straightChance > 0 && Math.random() < Math.min(0.5, this.straightChance);
+        const base = straight ? this.trueAngle(pointer) : this.aimAngle(pointer);
         if (pellets <= 1) {
             this.shoot(projectileSystem, pointer, 0, 0, base);
             return;

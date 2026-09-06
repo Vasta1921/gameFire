@@ -95,8 +95,13 @@ export function mergeCombatStats(shopStats, run) {
         doubleChance: Math.min(CHANCE_MAX, (shopStats.doubleChance || 0) + run.doubleChance),
         multiChance: Math.min(CHANCE_MAX, (shopStats.multiChance || 0) + (run.multiChance || 0)),
         pierce: (shopStats.pierce || 0) + run.pierce,
+        pierceChance: Math.min(CHANCE_MAX, shopStats.pierceChance || 0),
         explodeChance: Math.min(0.8, (shopStats.explodeChance || 0) + run.explodeChance),
         homing: Boolean(shopStats.homing),
         regenPerSec: shopStats.regenPerSec || 0,
+        waveHeal: shopStats.waveHeal || 0,
+        critChance: Math.min(CHANCE_MAX, shopStats.critChance || 0),
+        critMult: shopStats.critMult || 1.5,
+        straightChance: Math.min(CHANCE_MAX, shopStats.straightChance || 0),
     };
 }
